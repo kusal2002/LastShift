@@ -70,6 +70,33 @@ export type DecisionOptions = {
 
 export type RewardLine = { Label: string, Amount: number }
 
+export type CasebookEntry = {
+	Id: string,
+	DisplayName: string,
+	Description: string,
+	Category: string,
+	AnomalyName: string, -- revealed once you have escaped with this evidence
+}
+
+export type AnomalyRecordView = { Id: string, DisplayName: string, Encounters: number, Identified: number }
+
+-- The local player's saved progress, sent on load and after every change.
+export type ProfileView = {
+	Persistent: boolean, -- false when Studio is using the mock store (nothing is saved)
+	Credits: number,
+	XP: number,
+	Level: number,
+	IntoLevel: number,
+	ToNext: number, -- 0 at max level
+	Owned: { string },
+	Equipped: { [string]: string },
+	Casebook: { CasebookEntry },
+	EvidenceTotal: number,
+	Anomalies: { AnomalyRecordView },
+	Settings: { [string]: boolean },
+	Stats: { Rounds: number, Escapes: number, Transmissions: number, CorrectReports: number },
+}
+
 export type TeamMemberResult = {
 	Name: string,
 	Status: PlayerStatus,

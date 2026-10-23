@@ -11,6 +11,7 @@ local ordered: { any } = {
 	require(Services.AudioEventService),
 	require(Services.LightingService),
 	require(Services.PlayerStateService),
+	require(Services.ProfileService),
 	require(Services.ChargingService),
 	require(Services.ObjectiveService),
 	require(Services.ExtractionService),

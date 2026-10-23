@@ -2,9 +2,9 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code written and checked offline) · `[✓]` verified in Studio
 
-**Current state (2026-10-23):** Phases 1–5 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
+**Current state (2026-10-23):** Phases 1–6 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phases 1–4 merged to `main`; Phase 5 on `phase-5/evidence-decision`).
+Repository: https://github.com/kusal2002/LastShift (Phases 1–5 merged to `main`; Phase 6 on `phase-6/progression-data`).
 
 ---
 
@@ -360,7 +360,70 @@ Investigation → **Decision** → **Transmission** (if the team transmits) → 
 9. **Rewards once** — Watch Output: exactly one "earned N credits" line per player per round.
 10. **Two players** — One files the report; the other's transmitter screen closes and both see who decided and what they chose.
 
-## Phase 6 — Progression and data (not started)
+## Phase 6 — Progression and data `[x]` (awaiting Studio test)
+
+### Saved profile (`Logic/Profile.luau`, schema version 1)
+Credits, XP (level is calculated from it), stats (rounds, escapes, transmissions, correct reports), casebook (evidence ids), anomaly records (met / identified), owned cosmetics, equipped cosmetics, and settings (subtitles, ambient subtitles, reduced flashes). Nothing about a single round is stored.
+- **Versioned:** `Profile.migrate` upgrades older saves step by step. Add a function to `MIGRATIONS` and bump `CurrentVersion` when the format changes.
+- **Repaired on load:** `Profile.sanitize` fixes missing or wrong-typed fields, drops unknown cosmetics and invalid equips, and keeps every valid value.
+
+### Persistence (`Data/ProfileStore.luau`, `ProfileService`)
+- One DataStore key per player (`LastShift_Profiles_v1`, key `u_<userId>`). Only `UpdateAsync` is used, never `SetAsync`.
+- **Session locking:** joining claims the profile by writing this server's id and a timestamp. If another server holds a fresh lock (the player just left it and it is still saving), loading retries with backoff. A lock older than 180 s belongs to a crashed server and can be taken.
+- **Load failure never starts a blank profile:** after 5 attempts the player is kicked with a friendly message ("still saving, rejoin in a moment" or "couldn't load, nothing was lost").
+- **Saves:** autosave every 60 s (staggered by user id), on leave (releases the lock), and on server shutdown (everyone in parallel, waiting up to 25 s). Up to 4 retries with backoff. A save never overwrites a profile another server has taken over.
+- **Studio:** if "Enable Studio Access to API Services" is on, real DataStores are used. Otherwise an in-memory mock is used, Output warns, and the lobby shows "(Studio test data: not saved)". `Config/Data.Mode = "Mock"` forces the mock in Studio. Live servers always use DataStores.
+- Gameplay never touches DataStores. It changes the in-memory profile through `ProfileService.applyRound` and the equip / buy / setting handlers.
+
+### Progression and unlocks
+- **Rewards:** when a round ends, each player's credits and XP (granted once per round, as in Phase 5) are added to their profile along with stats and anomaly records. **Evidence enters the casebook only if that player escaped.**
+- **Levels** (`Logic/Progression.luau`): going from level L to L+1 costs 100 + 50 × (L − 1) XP, up to level 50. Level-ups announce themselves and unlock level cosmetics.
+- **Cosmetics** (`Config/Cosmetics.luau`): flashlight beams change colour only, never range or brightness. Badges are titles shown in the lobby. Items unlock by default, by level, or by credits. Buying and equipping go through remotes that check ownership, price and slot on the server.
+- Players can't ready up until their profile has loaded, so rewards always have somewhere to go.
+
+### Lobby screens
+- The lobby panel shows your level, credits, badge and XP to the next level.
+- **CASEBOOK:** anomalies met and identified, and every evidence entry you've escaped with, grouped by the anomaly it points to. Undiscovered entries show only as a count.
+- **LOCKER:** each cosmetic with EQUIPPED / EQUIP / BUY n CR / LEVEL n.
+- Settings changed on the client are saved to the profile and restored on the next join. The settings screen itself comes in Phase 7.
+
+### Also fixed
+- **Studio "Migration from Compatibility to Voxel Lighting" notice:** the project now sets `Lighting.Technology = Voxel` explicitly. Places built from the project no longer default to the retired Compatibility mode, so the notice no longer appears. A place file saved before this change may show it once.
+
+### Checklist
+- [x] Credits and XP saved
+- [x] Player profiles with session locking, retries, autosave, leave and shutdown saves
+- [x] Persistent unlocks (level and credit cosmetics)
+- [x] Casebook
+- [x] Reward configuration (Phase 5 economy, now persisted)
+- [x] Save/load error handling (kick on load failure, never overwrite another server's data)
+- [ ] Studio playtest (steps below)
+
+### Offline results (actually run, 2026-10-23)
+- `lune run tests/run`: 86 passed, 0 failed. 21 new tests cover:
+  - defaults, and that profiles never share tables;
+  - migration, and repair of malformed data;
+  - session locking: new player, fresh lock blocks, stale lock is taken, our own lock;
+  - saves refresh or release the lock and never overwrite another server's claim;
+  - round results, and casebook only when escaped;
+  - the level curve, level unlocks granted once;
+  - credit purchases and equips;
+  - settings whitelist;
+  - cosmetics carry no gameplay fields.
+- `selene src`: 0 errors, 0 warnings · `stylua --check`: clean · `luau-lsp analyze` (strict): 0 errors · `rojo build`: OK
+
+### Studio test script (Phase 6 acceptance)
+1. **Mock mode** — With API access off, press Play. Output warns "Using MOCK persistence"; the lobby says "(Studio test data: not saved)", level 1, 0 credits.
+2. **Real saves** — Publish the place, then in Game Settings → Security turn on **Enable Studio Access to API Services**. Play: Output says "using real DataStores". Finish a round, stop, play again: level, credits and casebook are kept.
+3. **Casebook** — Escape with evidence: a "new casebook entries" toast appears and CASEBOOK lists them under the anomaly they point to. Die instead: nothing is added, but the anomaly's "met" count goes up.
+4. **Level up** — Play rounds until level 3: a toast says "Unlocked Sodium Amber". In LOCKER, EQUIP it; your flashlight beam turns amber (range unchanged).
+5. **Buying** — With enough credits, BUY Signal Chaser: credits drop and the lobby badge can be changed. Without enough, "Not enough credits."
+6. **Settings persistence** — In the client command bar, run `require(game.Players.LocalPlayer.PlayerScripts.Client.Settings).set("ReducedFlashes", true)`, rejoin (real DataStores): the setting is restored.
+7. **Load failure** — Temporarily make `ProfileStore.update` error (e.g. `error("test")` at the top): joining retries, then kicks with "We couldn't load your progress...". Undo the change.
+8. **Session lock** — In a published game, join a server, leave, and immediately join another server: you load normally (after a short wait at most), never with a blank profile.
+9. **Shutdown** — Stop a playtest mid-round with real DataStores: progress up to the last finished round is kept.
+
+## Phase 7 — UI and visual polish (not started)
 
 ## Known issues / limitations
 - Dropped fuse returns to its original spot rather than where the carrier fell.
@@ -369,8 +432,9 @@ Investigation → **Decision** → **Transmission** (if the team transmits) → 
 - On-screen RUN/LIGHT button positions are a best guess and need checking in the device emulator.
 - Calibration UI has buttons only (no keyboard shortcuts yet).
 - Escaped players are teleported straight to the lobby; no exit cutscene.
+- Saving uses an in-house session-lock implementation (no external library). It follows the standard ProfileStore pattern but has only been unit-tested offline; verify it in a published game before launch.
+- A player who disconnects mid-round gets no rewards for that round.
 - The first player to submit at the transmitter decides for the whole team; there is no team vote.
-- Credits and XP are session-only until Phase 6 adds saving.
 - All art is placeholder geometry. No sound assets are configured, so every audio cue currently appears only as a subtitle. Add verified ids to `Config/Assets.Sounds` (keys are the `AssetKey` values in `Config/Audio.luau`).
 - The Echo has no animations: it glides upright. Its state cues are eye colour plus subtitled audio cues.
 - Escalation during a round is limited to event pacing and waking the Echo at extraction; the Echo itself does not get sharper as the timer runs down.
