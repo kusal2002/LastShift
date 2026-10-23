@@ -13,6 +13,9 @@ local Remotes = require(Shared.Remotes)
 local Types = require(Shared.Types)
 local RoundTransitions = require(Shared.Logic.RoundTransitions)
 local RoundOutcome = require(Shared.Logic.RoundOutcome)
+local Selection = require(Shared.Logic.Selection)
+local Anomalies = require(Shared.Config.Anomalies)
+local DebugConfig = require(Shared.Config.Debug)
 local Log = require(Shared.Util.Log)
 
 local RemoteService = require(script.Parent.RemoteService)
@@ -23,6 +26,8 @@ local ExtractionService = require(script.Parent.ExtractionService)
 local PlayerStateService = require(script.Parent.PlayerStateService)
 local ChargingService = require(script.Parent.ChargingService)
 local EnemyService = require(script.Parent.EnemyService)
+local DirectorService = require(script.Parent.DirectorService)
+local DecoyService = require(script.Parent.DecoyService)
 
 type Phase = Types.Phase
 type Status = Types.PlayerStatus
@@ -40,6 +45,9 @@ local participants: { [Player]: Status } = {}
 local deathConnections: { [Player]: RBXScriptConnection } = {}
 local spawnCursor = 0
 local broadcastQueued = false
+local roundRng = Random.new()
+-- The round's anomaly. Server-only: players must work it out (classification in Phase 5).
+local activeAnomaly: Anomalies.Profile = Anomalies.List[1]
 
 local function now(): number
 	return Workspace:GetServerTimeNow()
@@ -84,11 +92,13 @@ end
 local function buildTeam(): { Types.TeamMemberView }
 	local team: { Types.TeamMemberView } = {}
 	for player in participants do
+		local root = if participants[player] == "Alive" then InteractionService.getRoot(player) else nil
 		table.insert(team, {
 			UserId = player.UserId,
 			Name = player.DisplayName,
 			Status = participants[player],
 			Downed = PlayerStateService.isDowned(player),
+			Location = if root then MapService.roomAt(root.Position) else "",
 		})
 	end
 	table.sort(team, function(a: Types.TeamMemberView, b: Types.TeamMemberView)
@@ -106,6 +116,7 @@ local function buildSnapshot(player: Player): Types.Snapshot
 			Location = RoundConfig.Briefing.Location,
 			Objective = RoundConfig.Briefing.Objective,
 			Controls = RoundConfig.Briefing.Controls,
+			Classified = activeAnomaly.BriefingHint,
 		}
 	end
 	return {
@@ -167,6 +178,8 @@ local function resetRound()
 	ObjectiveService.reset()
 	ExtractionService.close()
 	ChargingService.reset()
+	DirectorService.endRound()
+	DecoyService.endRound()
 	EnemyService.endRound()
 	PlayerStateService.endRound()
 	for player, status in participants do
@@ -249,13 +262,20 @@ local function startRound()
 	roundId += 1
 	-- The seed is logged so a round's random choices can be reproduced when debugging.
 	local seed = Random.new():NextInteger(1, 2 ^ 30)
+	roundRng = Random.new(seed)
+	local forced = if RunService:IsStudio() then DebugConfig.ForceAnomaly else nil
+	activeAnomaly = (forced and Anomalies.ById[forced])
+		or Selection.pickOne(Anomalies.List, function(low: number, high: number): number
+			return roundRng:NextInteger(low, high)
+		end)
+		or Anomalies.List[1]
 	table.clear(participants)
 	for _, player in chosen do
 		participants[player] = "Alive"
 		ready[player] = nil
 	end
 	ObjectiveService.begin({
-		rng = Random.new(seed),
+		rng = roundRng,
 		onChanged = broadcast,
 		onAllComplete = function()
 			if phase == "Investigation" then
@@ -263,7 +283,14 @@ local function startRound()
 			end
 		end,
 	})
-	Log.info("Round", "Round %d starting with %d player(s), seed %d", roundId, #chosen, seed)
+	Log.info(
+		"Round",
+		"Round %d starting with %d player(s), seed %d, anomaly %s",
+		roundId,
+		#chosen,
+		seed,
+		activeAnomaly.Id
+	)
 	setPhase("Briefing")
 end
 
@@ -291,7 +318,11 @@ setPhase = function(nextPhase: Phase)
 		local entering = alivePlayers()
 		PlayerStateService.beginRound(entering)
 		ChargingService.beginRound()
-		EnemyService.beginRound(#entering == 1)
+		EnemyService.beginRound(#entering == 1, activeAnomaly)
+		DirectorService.beginRound({ profile = activeAnomaly, getPlayers = alivePlayers, rng = roundRng })
+		DecoyService.beginRound(activeAnomaly.DecoyCount, function(low: number, high: number): number
+			return roundRng:NextInteger(low, high)
+		end, alivePlayers)
 		-- If the map lacked objective parts, everything may already count as done.
 		if ObjectiveService.allComplete() then
 			task.defer(function()
@@ -302,6 +333,8 @@ setPhase = function(nextPhase: Phase)
 		end
 	elseif nextPhase == "Extraction" then
 		ExtractionService.open()
+		DirectorService.setExtracting()
+		EnemyService.escalate()
 		phaseEndsAt = now() + RoundConfig.ExtractionDuration
 		for _, player in alivePlayers() do
 			RemoteService.notify(
@@ -348,6 +381,7 @@ local function updateExtraction(dt: number)
 		participants[player] = "Escaped"
 		ObjectiveService.onPlayerRemoved(player)
 		PlayerStateService.removeFromRound(player)
+		DecoyService.removePlayer(player)
 		sendToLobby(player)
 		RemoteService.notify(player, "You made it out.", "success")
 	end
@@ -383,6 +417,7 @@ local function onDied(player: Player)
 	ObjectiveService.onPlayerRemoved(player)
 	ExtractionService.forget(player)
 	PlayerStateService.removeFromRound(player)
+	DecoyService.removePlayer(player)
 	RemoteService.notify(player, "You didn't make it. Waiting for the shift to end.", "danger")
 	broadcast()
 	checkEnd(false)
@@ -453,14 +488,19 @@ function RoundService.Init()
 		end
 		return true, nil
 	end)
-	-- The Echo only targets players who are inside, alive and not downed.
-	EnemyService.setTargetProvider(ablePlayers)
+	-- The Echo only targets players who are inside, alive and not downed; everyone inside hears it.
+	EnemyService.setProviders(ablePlayers, alivePlayers)
 	PlayerStateService.setHooks({
 		isActive = function(player: Player): boolean
 			return RoundTransitions.isActiveRound(phase) and participants[player] == "Alive"
 		end,
 		onChanged = broadcast,
 	})
+end
+
+-- Server-only: the current round's anomaly id (for classification in Phase 5).
+function RoundService.getAnomalyId(): string
+	return activeAnomaly.Id
 end
 
 -- Studio-only (called by DevCommandService): end the current phase timer now.

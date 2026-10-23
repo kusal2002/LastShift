@@ -124,7 +124,7 @@ local function buildHud()
 			key ..= `{objective.Id}:{objective.Complete}:{objective.Detail};`
 		end
 		for _, member in snapshot.Team do
-			key ..= `{member.UserId}:{member.Status}:{member.Downed};`
+			key ..= `{member.UserId}:{member.Status}:{member.Downed}:{member.Location};`
 		end
 		if key == lastObjectives then
 			return
@@ -150,7 +150,11 @@ local function buildHud()
 				elseif member.Status ~= "Alive" then
 					text, color = TEAM_STATUS[member.Status] or member.Status, Theme.Colors.Muted
 				end
-				Theme.label(list, `{member.Name} - {text}`, 13, color)
+				-- Where teammates really are: the check against fake radio calls.
+				local where = if member.Status == "Alive" and member.Location ~= ""
+					then ` ({member.Location})`
+					else ""
+				Theme.label(list, `{member.Name} - {text}{where}`, 13, color)
 			end
 		end
 	end
@@ -281,9 +285,13 @@ local function buildMeters()
 			batteryValue / PlayerConfig.Flashlight.MaxBattery,
 			`{if on then "ON" else "OFF"} {batteryValue}%`
 		)
+
+		local hasDecoy = player:GetAttribute("HasDecoy") == true
+		hints.Text = "[Shift] sprint   [F] flashlight" .. (if hasDecoy then "   [G] noise maker" else "")
+		hints.Visible = UserInputService.KeyboardEnabled or hasDecoy
 	end
 
-	for _, attribute in { "Stamina", "Battery", "FlashlightOn", "Downed" } do
+	for _, attribute in { "Stamina", "Battery", "FlashlightOn", "Downed", "HasDecoy" } do
 		player:GetAttributeChangedSignal(attribute):Connect(render)
 	end
 	State.changed:Connect(render)

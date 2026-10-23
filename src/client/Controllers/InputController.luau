@@ -84,11 +84,29 @@ function InputController.start()
 		Enum.KeyCode.ButtonY
 	)
 
+	local decoyRemote = Remotes.getClient(Remotes.Names.DecoyUse)
+	ContextActionService:BindAction(
+		"LastShiftDecoy",
+		function(_name: string, state: Enum.UserInputState, _input: InputObject)
+			if
+				state == Enum.UserInputState.Begin
+				and Players.LocalPlayer:GetAttribute("HasDecoy") == true
+			then
+				decoyRemote:FireServer()
+			end
+			return Enum.ContextActionResult.Pass
+		end,
+		false,
+		Enum.KeyCode.G,
+		Enum.KeyCode.ButtonX
+	)
+
 	if UserInputService.TouchEnabled then
 		local gui = Theme.screenGui("TouchControls", 4)
 		gui.Enabled = true
 		local run = makeTouchButton(gui, "RUN", -20)
 		local light = makeTouchButton(gui, "LIGHT", -104)
+		local decoy = makeTouchButton(gui, "DECOY", -188)
 		runButton = run
 		run.Activated:Connect(function()
 			setSprint(not wantsSprint)
@@ -96,6 +114,15 @@ function InputController.start()
 		light.Activated:Connect(function()
 			flashlightRemote:FireServer()
 		end)
+		decoy.Activated:Connect(function()
+			decoyRemote:FireServer()
+		end)
+		-- Only shown while carrying a noise maker.
+		local function refreshDecoy()
+			decoy.Visible = Players.LocalPlayer:GetAttribute("HasDecoy") == true
+		end
+		Players.LocalPlayer:GetAttributeChangedSignal("HasDecoy"):Connect(refreshDecoy)
+		refreshDecoy()
 	end
 
 	-- A new character starts walking; clear any held sprint.

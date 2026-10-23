@@ -175,6 +175,35 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			panel:SetAttribute("PanelId", `GEN-{suffix}`)
 			CollectionService:AddTag(panel, Tags.FusePanel)
 		end
+	elseif char == "G" then
+		local cframe = mountedCFrame(row, col, 0.8, 4.5)
+		if cframe then
+			local switch = makePart({
+				Name = `PowerSwitch_{suffix}`,
+				Size = Vector3.new(3, 4, 0.8),
+				CFrame = cframe,
+				Color = COLORS.Door,
+				Material = Enum.Material.DiamondPlate,
+				Parent = parent,
+			})
+			CollectionService:AddTag(switch, Tags.PowerSwitch)
+			makeSign(switch, "BACKUP\nPOWER", COLORS.WarmLight)
+		end
+	elseif char == "N" then
+		makePart({
+			Name = `Shelf_{suffix}`,
+			Size = Vector3.new(3, 2.5, 2),
+			CFrame = CFrame.new(center + Vector3.new(0, 1.25, 0)),
+			Color = COLORS.Crate,
+			Material = Enum.Material.Metal,
+			Parent = parent,
+		})
+		makeMarker(
+			`DecoySpawn_{suffix}`,
+			CFrame.new(center + Vector3.new(0, 2.9, 0)),
+			Tags.DecoySpawn,
+			parent
+		)
 	elseif char == "Q" then
 		local cframe = mountedCFrame(row, col, 0.8, 4)
 		if cframe then
@@ -244,6 +273,8 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			CanCollide = false,
 		})
 		addLight(lamp, color, 24, if char == "L" then 1.2 else 0.9)
+		lamp:SetAttribute("Room", MapGrid.roomAt(Layout.Rooms, row, col) or "")
+		CollectionService:AddTag(lamp, Tags.StationLight)
 		-- Lit cells double as the Echo's patrol route.
 		makeMarker(
 			`EchoPatrol_{suffix}`,
@@ -493,6 +524,43 @@ function MapService.getLobbySpawnCFrame(): CFrame
 		return spawns[1].CFrame + Vector3.new(0, 4, 0)
 	end
 	return CFrame.new(Layout.LobbyOrigin.X, Layout.LobbyOrigin.Y + 4, Layout.LobbyOrigin.Z)
+end
+
+-- Room name at a world position inside the station, or "" if outside / unnamed.
+-- Only meaningful for the generated graybox layout.
+function MapService.roomAt(position: Vector3): string
+	local size = Layout.CellSize
+	local height = position.Y - Layout.Origin.Y
+	if height < -4 or height > Layout.WallHeight + 4 then
+		return ""
+	end
+	local col = math.round((position.X - Layout.Origin.X) / size)
+	local row = math.round((position.Z - Layout.Origin.Z) / size)
+	return MapGrid.roomAt(Layout.Rooms, row, col) or ""
+end
+
+function MapService.getRoomNames(): { string }
+	local names = {}
+	for _, room in Layout.Rooms do
+		table.insert(names, room.Name)
+	end
+	return names
+end
+
+-- Floor-level centres of every walkable cell in a room.
+function MapService.getRoomPoints(roomName: string): { Vector3 }
+	local points = {}
+	for rowIndex, line in Layout.Rows do
+		for col = 0, #line - 1 do
+			local row = rowIndex - 1
+			local char = MapGrid.charAt(Layout.Rows, row, col)
+			-- Plain floor only, so points are never inside furniture.
+			if char == "." and MapGrid.roomAt(Layout.Rooms, row, col) == roomName then
+				table.insert(points, cellCenter(row, col) + Vector3.new(0, 0.5, 0))
+			end
+		end
+	end
+	return points
 end
 
 return MapService

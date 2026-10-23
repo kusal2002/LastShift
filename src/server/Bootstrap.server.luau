@@ -8,11 +8,15 @@ local ordered: { any } = {
 	require(Services.MapService),
 	require(Services.InteractionService),
 	require(Services.NoiseService),
+	require(Services.AudioEventService),
+	require(Services.LightingService),
 	require(Services.PlayerStateService),
 	require(Services.ChargingService),
 	require(Services.ObjectiveService),
 	require(Services.ExtractionService),
+	require(Services.DecoyService),
 	require(Services.EnemyService),
+	require(Services.DirectorService),
 	require(Services.RoundService),
 	require(Services.DevCommandService), -- does nothing outside Studio
 }

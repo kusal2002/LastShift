@@ -17,6 +17,8 @@ local controllers: { any } = {
 	require(Controllers.InputController),
 	require(Controllers.DownedController),
 	require(Controllers.SpectateController),
+	require(Controllers.AudioController),
+	require(Controllers.LightingController),
 	require(Controllers.DevController), -- does nothing outside Studio
 }
 
