@@ -31,6 +31,7 @@ function Overlay.new(name: string, displayOrder: number, maxSize: Vector2): Over
 	limit.MaxSize = maxSize
 	limit.Parent = panel
 	panel.Parent = gui
+	Theme.scaled(panel)
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1

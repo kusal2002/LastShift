@@ -42,6 +42,17 @@ return {
 		"##########XXXX##########",
 		"########################",
 	},
+	-- Wall signs. The first line is always the room name exactly as the HUD shows it, so players
+	-- can match a radio call or teammate location to a place. Each cell needs a wall beside it.
+	Signs = {
+		{ Text = "STORAGE", Row = 1, Col = 3 },
+		{ Text = "OPERATIONS\nRELAY TRANSMITTER", Row = 1, Col = 10 },
+		{ Text = "TOWER ACCESS\nAUTHORIZED PERSONNEL ONLY", Row = 1, Col = 20, Warning = true },
+		{ Text = "CORRIDOR", Row = 7, Col = 8 },
+		{ Text = "GENERATOR ROOM\nDANGER: HIGH VOLTAGE", Row = 10, Col = 4, Warning = true },
+		{ Text = "ENTRANCE HALL", Row = 10, Col = 8 },
+		{ Text = "MAINTENANCE", Row = 10, Col = 20 },
+	},
 	-- Named areas (zero-based, inclusive). Shown in the HUD team list and used by events.
 	Rooms = {
 		{ Name = "Storage", Rows = { 1, 5 }, Cols = { 1, 5 } },

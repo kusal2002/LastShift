@@ -2,9 +2,9 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code written and checked offline) · `[✓]` verified in Studio
 
-**Current state (2026-10-23):** Phases 1–6 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
+**Current state (2026-10-24):** Phases 1–7 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phases 1–5 merged to `main`; Phase 6 on `phase-6/progression-data`).
+Repository: https://github.com/kusal2002/LastShift (Phases 1–6 merged to `main`; Phase 7 on `phase-7/ui-polish`).
 
 ---
 
@@ -423,7 +423,63 @@ Credits, XP (level is calculated from it), stats (rounds, escapes, transmissions
 8. **Session lock** — In a published game, join a server, leave, and immediately join another server: you load normally (after a short wait at most), never with a blank profile.
 9. **Shutdown** — Stop a playtest mid-round with real DataStores: progress up to the last finished round is kept.
 
-## Phase 7 — UI and visual polish (not started)
+## Phase 7 — UI and visual polish `[x]` (awaiting Studio test)
+
+### Settings and accessibility
+- **Settings screen**, opened from the lobby (SETTINGS) or during a round (SETTINGS button under NOTES):
+  - Master, effects and ambient volume, in 10% steps.
+  - Subtitles for important sounds, and separately for background sounds.
+  - Reduced flashes: lights dim instead of flickering.
+  - Text size: 85% to 130%.
+  - Toggles say ON/OFF in words, not just colour. Changes apply at once and are saved to the profile.
+- **Save format v2:** adds the number settings. Older v1 saves are migrated automatically and keep their existing settings; this is the first real use of the Phase 6 migration path. The server validates each setting's type and clamps numbers to their range.
+- Volumes apply to every cue that has a sound asset. None are configured yet, and the screen says so. Subtitles always work.
+
+### Responsive UI
+- Every panel gets a `UIScale`. Screens whose short side is under 640 px scale panels down (to 60% at most), multiplied by the player's text-size setting.
+- On-screen touch buttons (RUN / LIGHT / DECOY) are deliberately **not** scaled, so they keep a 72 px touch target.
+- The in-round NOTES and SETTINGS buttons stack top right, clear of the objectives panel on narrow portrait phones.
+
+### New screens and HUD
+- **HOW TO PLAY** (lobby): the shift's goal, keyboard / gamepad / touch controls, survival tips and how evidence works. It never says how each anomaly behaves.
+- **Briefing** now lists starting equipment.
+- **HUD warnings** in the meters panel, in words as well as colour: "LOW BATTERY", "LIGHT DEAD: find a charger", "OUT OF BREATH".
+
+### Lighting and environment
+- **Lighting:** a cold, desaturated colour grade (`ColorGrade`), subtle bloom on neon lamps and screens (`Glow`), and light haze (`Atmosphere`). All are set in `default.project.json` under Lighting.
+- **Room signs** high on the walls in every main room. Each sign's first line is exactly the room name the HUD team list shows, so players can match a Mimic call or a teammate's location to a place. The tower and generator rooms carry warning lines. A test enforces that signs and HUD names match.
+- **EXIT** signs on the exit doors, facing the entrance hall.
+
+### Checklist
+- [x] Lobby UI (profile, play, casebook, locker, settings, how to play)
+- [x] In-round HUD (objectives, team, meters, warnings, notes, settings)
+- [x] Casebook (Phase 6), results (Phase 5)
+- [x] Settings and accessibility (volumes, subtitles, reduced flashes, text size)
+- [x] Shop: the Locker covers credit purchases; Robux items are Phase 8
+- [x] Responsive layouts
+- [x] Lighting and environmental polish (colour grade, bloom, haze, signage)
+- [ ] Custom-styled interaction prompts: deferred. The default Roblox prompts work well on every device.
+- [ ] Studio playtest (steps below)
+
+### Offline results (actually run, 2026-10-24)
+- `lune run tests/run`: 89 passed, 0 failed. New tests:
+  - a v1 save migrates to v2 and keeps its old settings;
+  - number settings are clamped and rounded;
+  - setting types are enforced;
+  - every room sign sits on a wall and names the HUD room at that spot.
+- `selene src`: 0 errors, 0 warnings · `stylua --check`: clean · `luau-lsp analyze` (strict): 0 errors · `rojo build`: OK
+
+### Studio test script (Phase 7 acceptance)
+1. **Settings** — Lobby → SETTINGS. Turn Reduced flashes ON, trigger an event with F10 that flickers lights: they dim smoothly. Turn important subtitles OFF: Echo cues stop showing. Rejoin with real DataStores: the settings are kept.
+2. **Text size** — Raise text size to 130%: every panel grows; lower to 85%: they shrink. Nothing should go off screen at 130% on desktop.
+3. **Phone layout** — Device emulator, iPhone-sized, landscape then portrait. The lobby panel, briefing, results, casebook, locker and settings all fit (scroll where needed); text is readable; RUN/LIGHT/DECOY stay full size; NOTES/SETTINGS don't overlap the objectives panel.
+4. **Scaling origin** — Check that scaled panels stay anchored where they should (lobby at the bottom centre, notes top right, centred overlays centred). If a panel drifts toward the top-left when scaled down, UIScale isn't scaling around the AnchorPoint as expected and needs adjusting.
+5. **HUD warnings** — F8 (battery 5%) shows LOW BATTERY; sprint until empty shows OUT OF BREATH.
+6. **How to play** — Lobby → HOW TO PLAY opens; only one lobby screen is open at a time.
+7. **Signs** — Walk the station: each room's sign matches the room name in the HUD team list (play with two players to see it). EXIT signs face the entrance hall.
+8. **Look** — Compare the station with and without `Lighting.ColorGrade` / `Glow` / `Atmosphere` (toggle Enabled in Studio). Tune the values in `default.project.json` if it's too dark or too washed out on your screen.
+
+## Phase 8 — Monetization (not started)
 
 ## Known issues / limitations
 - Dropped fuse returns to its original spot rather than where the carrier fell.
@@ -431,6 +487,8 @@ Credits, XP (level is calculated from it), stats (rounds, escapes, transmissions
 - Like any Roblox game, a cheater can raise their own WalkSpeed on their client. The server controls the intended speed; detecting speed hacks is out of scope for the MVP.
 - On-screen RUN/LIGHT button positions are a best guess and need checking in the device emulator.
 - Calibration UI has buttons only (no keyboard shortcuts yet).
+- Interaction prompts use Roblox's default style rather than the game's theme.
+- UI scaling assumes UIScale scales each panel around its AnchorPoint; confirm in Studio (Phase 7 test step 4).
 - Escaped players are teleported straight to the lobby; no exit cutscene.
 - Saving uses an in-house session-lock implementation (no external library). It follows the standard ProfileStore pattern but has only been unit-tested offline; verify it in a published game before launch.
 - A player who disconnects mid-round gets no rewards for that round.

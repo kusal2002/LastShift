@@ -60,6 +60,46 @@
           0.08
         ],
         "Technology": "Voxel"
+      },
+      "Atmosphere": {
+        "$className": "Atmosphere",
+        "$properties": {
+          "Density": 0.3,
+          "Offset": 0.15,
+          "Color": [
+            0.36,
+            0.4,
+            0.46
+          ],
+          "Decay": [
+            0.2,
+            0.22,
+            0.26
+          ],
+          "Glare": 0,
+          "Haze": 1.2
+        }
+      },
+      "ColorGrade": {
+        "$className": "ColorCorrectionEffect",
+        "$properties": {
+          "Brightness": -0.02,
+          "Contrast": 0.12,
+          "Saturation": -0.3,
+          "TintColor": [
+            0.93,
+            0.96,
+            1
+          ]
+        }
+      },
+      "Glow": {
+        "$className": "BloomEffect",
+        "$properties": {
+          "Intensity": 0.5,
+          "Size": 20,
+          "Threshold": 1.4
+        }
       }
     }
   }

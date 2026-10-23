@@ -75,6 +75,7 @@ function AudioController.start()
 	list.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	list.Parent = container
 	container.Parent = gui
+	Theme.scaled(container)
 
 	local order = 0
 	local lines: { TextLabel } = {}
@@ -130,7 +131,8 @@ function AudioController.start()
 			return
 		end
 		local position: Vector3? = if typeof(payload.Position) == "Vector3" then payload.Position else nil
-		playSound(cue.AssetKey, cue.Volume, position)
+		local channel = if cue.Important then Settings.EffectsVolume else Settings.AmbientVolume
+		playSound(cue.AssetKey, cue.Volume * Settings.MasterVolume * channel, position)
 
 		if not Settings.Subtitles or (not cue.Important and not Settings.AmbientSubtitles) then
 			return

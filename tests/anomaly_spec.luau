@@ -143,4 +143,16 @@ H.test("layout has a power switch and noise makers", function()
 	H.ok((counts.N or 0) >= 2, "needs noise maker spots")
 end)
 
+H.test("room signs sit on walls and name the room the HUD shows there", function()
+	H.ok(#StationLayout.Signs >= 7, "every main room has a sign")
+	for _, sign in StationLayout.Signs do
+		local dRow = MapGrid.adjacentWall(StationLayout.Rows, sign.Row, sign.Col)
+		H.ok(dRow ~= nil, `sign {sign.Text} has no wall`)
+		local room = MapGrid.roomAt(StationLayout.Rooms, sign.Row, sign.Col)
+		H.ok(room ~= nil, `sign {sign.Text} is outside every room`)
+		local firstLine = string.split(sign.Text, "\n")[1]
+		H.eq(firstLine, string.upper(room :: string), "sign must match the HUD room name")
+	end
+end)
+
 return H

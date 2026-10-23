@@ -315,6 +315,7 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			Parent = parent,
 		})
 		CollectionService:AddTag(door, Tags.ExitDoor)
+		makeSign(door, "EXIT", COLORS.WarmLight)
 	elseif char == "X" then
 		makePart({
 			Name = `Pad_{suffix}`,
@@ -391,6 +392,22 @@ local function buildStation(): Model
 
 	for _, marker in MapGrid.markers(rows) do
 		buildMarker(marker.char, marker.row, marker.col, model)
+	end
+
+	-- Room signs, high on the wall so they read over furniture.
+	for _, sign in Layout.Signs do
+		local cframe = mountedCFrame(sign.Row, sign.Col, 0.2, 10.5)
+		if cframe then
+			local board = makePart({
+				Name = `Sign_r{sign.Row}c{sign.Col}`,
+				Size = Vector3.new(6.5, 2.2, 0.2),
+				CFrame = cframe,
+				Color = COLORS.Board,
+				Parent = model,
+				CanCollide = false,
+			})
+			makeSign(board, sign.Text, if sign.Warning then COLORS.WarmLight else COLORS.ColdLight)
+		end
 	end
 
 	model.Parent = Workspace

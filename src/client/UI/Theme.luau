@@ -1,7 +1,9 @@
 --!strict
--- Shared look and small builders for the placeholder UI: dark translucent panels,
--- monospace text, amber and green accents. Layouts use scale + max size so they fit phones.
+-- Shared look and small builders for the UI: dark translucent panels, monospace text, amber and
+-- green accents. Layouts use scale + max size so they fit phones, and every panel gets a UIScale
+-- that shrinks it on small screens and follows the player's text-size setting.
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 local Theme = {}
 
@@ -19,6 +21,59 @@ Theme.Colors = table.freeze({
 local family = Font.fromEnum(Enum.Font.RobotoMono).Family
 Theme.Regular = Font.new(family, Enum.FontWeight.Regular)
 Theme.Bold = Font.new(family, Enum.FontWeight.Bold)
+
+-- Responsive scaling ---------------------------------------------------------------
+local scales: { UIScale } = {}
+local userScale = 1
+local REFERENCE_SIZE = 640 -- screens whose short side is smaller than this get scaled down
+
+local function effectiveScale(): number
+	local camera = Workspace.CurrentCamera
+	local viewport = if camera then camera.ViewportSize else Vector2.new(1280, 720)
+	local factor = math.clamp(math.min(viewport.X, viewport.Y) / REFERENCE_SIZE, 0.6, 1)
+	return factor * userScale
+end
+
+local function refreshScales()
+	local value = effectiveScale()
+	for index = #scales, 1, -1 do
+		local scale = scales[index]
+		if scale.Parent == nil then
+			table.remove(scales, index)
+		else
+			scale.Scale = value
+		end
+	end
+end
+
+local cameraConnection: RBXScriptConnection? = nil
+local function watchCamera()
+	if cameraConnection then
+		cameraConnection:Disconnect()
+	end
+	local camera = Workspace.CurrentCamera
+	if camera then
+		cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(refreshScales)
+	end
+	refreshScales()
+end
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+watchCamera()
+
+-- Gives a top-level panel responsive scaling (scales around its AnchorPoint).
+function Theme.scaled<T>(object: T): T
+	local scale = Instance.new("UIScale")
+	scale.Scale = effectiveScale()
+	scale.Parent = object :: any
+	table.insert(scales, scale)
+	return object
+end
+
+-- The player's text-size setting (multiplies the screen-size factor).
+function Theme.setUserScale(value: number)
+	userScale = value
+	refreshScales()
+end
 
 local layoutOrder = 0
 local function nextOrder(): number
@@ -80,6 +135,10 @@ function Theme.panel(parent: Instance, name: string, maxWidth: number): Frame
 	limit.Parent = frame
 
 	frame.Parent = parent
+	-- Nested panels (e.g. toasts inside a container) inherit their parent's scale.
+	if parent:IsA("ScreenGui") then
+		Theme.scaled(frame)
+	end
 	return frame
 end
 

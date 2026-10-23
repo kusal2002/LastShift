@@ -123,6 +123,7 @@ local function buildSnapshot(player: Player): Types.Snapshot
 			Location = RoundConfig.Briefing.Location,
 			Objective = RoundConfig.Briefing.Objective,
 			Controls = RoundConfig.Briefing.Controls,
+			Equipment = RoundConfig.Briefing.Equipment,
 			Classified = activeAnomaly.BriefingHint,
 		}
 	end
