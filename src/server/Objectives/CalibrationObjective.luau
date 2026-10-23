@@ -18,6 +18,8 @@ local Services = script.Parent.Parent.Services
 local MapService = require(Services.MapService)
 local InteractionService = require(Services.InteractionService)
 local RemoteService = require(Services.RemoteService)
+local NoiseService = require(Services.NoiseService)
+local EnemyConfig = require(Shared.Config.Enemy)
 local ObjectiveTypes = require(script.Parent.ObjectiveTypes)
 
 local Names = Remotes.Names
@@ -158,8 +160,9 @@ function CalibrationObjective.new(ctx: ObjectiveTypes.Context): ObjectiveTypes.O
 					return
 				end
 
-				-- Wrong frequency. Phase 3 will report this to the enemy as a loud noise.
+				-- Wrong frequency: a burst of loud static the Echo can hear.
 				mistakes += 1
+				NoiseService.emit(console.Position, EnemyConfig.Noise.FailedCalibration, "FailedCalibration")
 				if mistakes >= Config.MaxMistakes then
 					mistakes = 0
 					lockedUntil = os.clock() + Config.LockoutSeconds

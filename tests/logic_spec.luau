@@ -173,6 +173,8 @@ H.test("station layout has every required marker", function()
 	H.ok((counts.D or 0) >= 1, "needs an exit door")
 	H.ok((counts.X or 0) >= 1, "needs an extraction zone")
 	H.ok((counts.Q or 0) >= 1, "needs a charging station")
+	H.eq(counts.Z, 1, "needs exactly one Echo spawn")
+	H.ok((counts.L or 0) + (counts.C or 0) >= 6, "needs enough Echo patrol points")
 end)
 
 H.test("validator catches broken layouts", function()

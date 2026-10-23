@@ -15,6 +15,8 @@ local Log = require(Shared.Util.Log)
 local Services = script.Parent.Parent.Services
 local MapService = require(Services.MapService)
 local InteractionService = require(Services.InteractionService)
+local NoiseService = require(Services.NoiseService)
+local EnemyConfig = require(Shared.Config.Enemy)
 local ObjectiveTypes = require(script.Parent.ObjectiveTypes)
 
 local ID = "fuse"
@@ -131,6 +133,7 @@ function FuseObjective.new(ctx: ObjectiveTypes.Context): ObjectiveTypes.Objectiv
 		clearVisual()
 		panelPrompt.Enabled = false
 		panel.Color = FUSE_COLOR
+		NoiseService.emit(panel.Position, EnemyConfig.Noise.FuseInsert, "FuseInsert") -- the breaker slams on
 		ctx.notify(player, "Breaker restored. Relay power is back.", "success")
 		ctx.markChanged()
 	end)
