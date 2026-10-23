@@ -14,4 +14,7 @@ return table.freeze({
 	ChargingStation = "ChargingStation", -- wall unit that refills flashlight batteries
 	EchoSpawn = "EchoSpawn", -- floor marker where the Echo appears each round
 	EchoPatrol = "EchoPatrol", -- floor markers the Echo wanders between
+	StationLight = "StationLight", -- ceiling lamp; attribute Room names its area
+	PowerSwitch = "PowerSwitch", -- backup power switch that ends a blackout
+	DecoySpawn = "DecoySpawn", -- marker where a noise maker can be placed
 })

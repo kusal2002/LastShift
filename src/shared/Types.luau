@@ -16,6 +16,7 @@ export type BriefingView = {
 	Location: string,
 	Objective: string,
 	Controls: string,
+	Classified: string, -- a hint about this round's anomaly
 }
 
 export type TeamMemberView = {
@@ -23,6 +24,7 @@ export type TeamMemberView = {
 	Name: string,
 	Status: PlayerStatus,
 	Downed: boolean,
+	Location: string, -- room name, or "" when unknown or outside
 }
 
 -- Sent to each player whenever round state changes.
@@ -57,6 +59,12 @@ export type Results = {
 	Evidence: { string },
 	DurationSeconds: number,
 	Team: { TeamMemberResult },
+}
+
+export type AudioCuePayload = {
+	Cue: string,
+	Text: string?, -- replaces the cue's default subtitle
+	Position: Vector3?, -- spatial cues only
 }
 
 export type CalibrationParams = {

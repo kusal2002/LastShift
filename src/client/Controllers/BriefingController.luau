@@ -24,6 +24,7 @@ function BriefingController.start()
 	Theme.label(panel, "INCOMING ASSIGNMENT // NIGHT SHIFT", 14, Theme.Colors.Muted, true)
 	local location = Theme.label(panel, "", 22, Theme.Colors.Amber, true)
 	local objective = Theme.label(panel, "", 17)
+	local classified = Theme.label(panel, "", 15, Theme.Colors.Red)
 	local controls = Theme.label(panel, "", 14, Theme.Colors.Muted)
 	local countdown = Theme.label(panel, "", 18, Theme.Colors.Amber, true)
 
@@ -40,6 +41,7 @@ function BriefingController.start()
 		end
 		location.Text = briefing.Location
 		objective.Text = briefing.Objective
+		classified.Text = `CLASSIFIED: {briefing.Classified}`
 		controls.Text = briefing.Controls
 		local left = State.secondsLeft()
 		countdown.Text = if left then `ENTERING STATION IN {math.ceil(left)}` else ""

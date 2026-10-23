@@ -2,9 +2,9 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code written and checked offline) · `[✓]` verified in Studio
 
-**Current state (2026-10-23):** Phases 1–3 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
+**Current state (2026-10-23):** Phases 1–4 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phase 1 on `main`; Phase 2 on `phase-2/player-systems`, PR #1; Phase 3 on `phase-3/echo-ai`, stacked on Phase 2).
+Repository: https://github.com/kusal2002/LastShift (Phase 1 on `main`; Phase 2 on `phase-2/player-systems`, PR #1; Phase 3 on `phase-3/echo-ai`, PR #2 stacked on Phase 2; Phase 4 on `phase-4/anomalies`, stacked on Phase 3).
 
 ---
 
@@ -231,7 +231,80 @@ Run each and note pass/fail here.
 10. **Two players** — It chases one; the other can revive the downed one. It ignores the downed player.
 11. **Performance** — With the Echo hunting, check the server Script Performance / MicroProfiler: the AI should stay well under 1 ms per tick.
 
-## Phase 4 — Horror and anomaly variants (not started)
+## Phase 4 — Horror and anomaly variants `[x]` (awaiting Studio test)
+
+### Anomalies (`Config/Anomalies.luau`)
+One profile is picked per round from the round seed (in Studio you can force one with `Config/Debug.ForceAnomaly`). It retunes the shared Echo AI and decides which director events can happen. The anomaly is never sent to clients; the briefing only shows a hint. `RoundService.getAnomalyId()` exposes it on the server for Phase 5.
+
+| | Listener | Mimic | Blackout |
+|---|---|---|---|
+| Echo | Hears 1.5× further, notices quieter sounds, sees 20% less, reacts faster | Stalks longer and closer, slightly slower chase | Sees 10% less normally; **during a blackout** sees 30% further, hunts sooner, chases 10% faster (still slower than sprinting) |
+| Events | Footsteps, static, flicker, PA | Adds fake radio calls, fake PA, fake evidence | Adds power outages |
+| Noise makers | 2 | 1 | 1 |
+| Counterplay | Walk, coordinate noisy tasks, use noise makers | Check the HUD team list: it shows each teammate's real room, and fake calls always name a room they aren't in | Restore backup power (generator room), carry a charged light, move between lit rooms |
+
+### Event director (`DirectorService`, `Logic/ScareDirector.luau`)
+- Ticks once a second. It is quiet for the first 25 s, then allows at most one event per gap: 25 s early in the round, shrinking to 12 s at the end. Each event also has its own cooldown (25–90 s), and some need a minimum intensity. Intensity rises over the investigation timer and is full during extraction.
+- Events:
+  - Distant footsteps.
+  - Radio interference, with a flicker in Operations.
+  - Light flicker in a player's room.
+  - PA announcements (authored lines).
+  - Mimic radio call or fake PA: names a teammate and a room they aren't in. 60% of the time the Echo heads to that room.
+  - Mimic fake evidence: looks real but only makes noise when examined. It never affects real objectives and disappears after 60 s.
+  - Blackout outage.
+- **Outages:** a warning cue and a 3 s flicker, then the lights in 2 rooms go dark for everyone for 40 s. One of the rooms is usually where a player is, and the corridor is sometimes added. The **Backup Power** switch in the generator room (hold 3 s) ends the outage early but makes a loud noise. The loading bay is never affected.
+- The start of extraction plays an alarm cue and wakes the Echo.
+
+### Audio and subtitles
+- `AudioEventService` sends cue ids. `AudioController` plays a sound **only if a verified asset id is set in `Config/Assets.Sounds`**. None are set, so for now every cue appears only as a subtitle (for example `[PA] Please remain calm...` or `[a rising screech: it's coming] (nearby)`). The cue catalogue is in `Config/Audio.luau`.
+- The Echo announces its state changes to players within 60 studs: clicking (Listen), breathing (Stalk), screech (Hunt), sharp breath (Attack windup). These match its eye colours.
+- Client settings stub (`client/Settings.luau`): Subtitles, AmbientSubtitles, ReducedFlashes. The settings screen comes in Phase 7.
+
+### Lighting
+- Blackouts happen on the server: the lamps really turn off for everyone. Flickers are cosmetic and run on each client. They change only brightness and transparency, so they can't undo a blackout. With ReducedFlashes on, lights dim smoothly instead of flickering.
+
+### Noise makers (`DecoyService`)
+- They sit on shelves (`N` in the layout). Take one (carry at most 1), then press **G**, gamepad **X**, or the touch **DECOY** button to set it down. After 2 s it beeps 3 times at loudness 1.0, pulling the Echo toward it. The server tracks who is carrying one (`HasDecoy` attribute).
+
+### Other changes
+- Layout: `G` backup power switch (generator room), three `N` noise-maker shelves, and named rooms (`Rooms` table). The HUD team list now shows each living teammate's room.
+- Studio dev key **F10**: trigger the next director event now.
+
+### Checklist
+- [x] Listener, Mimic, Blackout profiles on one shared Echo AI
+- [x] Audio event scheduling (director with cooldowns and intensity limits)
+- [x] Environmental lighting events (flicker, outages, backup power)
+- [x] Anomaly configuration (data-driven)
+- [x] Scare cooldowns
+- [ ] Optional risk-reward evidence: moved to Phase 5 with the evidence system
+- [ ] Studio playtest (steps below)
+
+### Offline results (actually run, 2026-10-23)
+- `lune run tests/run`: 56 passed, 0 failed. New tests cover:
+  - tuning;
+  - every anomaly's modifiers name real Echo settings;
+  - no anomaly can outrun a sprinting player or shorten the attack windup below 0.5 s;
+  - every event an anomaly uses exists in the director;
+  - every cue has a subtitle;
+  - director quiet start, gaps, cooldowns, intensity, weights and blocks;
+  - every walkable cell belongs to a room;
+  - the layout has a power switch and noise makers.
+- `selene src`: 0 errors, 0 warnings · `stylua --check`: clean · `luau-lsp analyze` (strict): 0 errors · `rojo build`: OK
+
+### Studio test script (Phase 4 acceptance)
+For each anomaly, set `ForceAnomaly` in `src/shared/Config/Debug.luau` (Studio only), then start a round.
+1. **Briefing** — The briefing shows a red `CLASSIFIED:` hint that differs per anomaly. Output logs the chosen anomaly.
+2. **Pacing** — Play for 3 minutes without dev keys. Subtitled events appear, spaced out: none in the first 25 s, never two at once. Objectives stay completable throughout.
+3. **F10** — Triggers an event immediately. Press it repeatedly to see the anomaly's event mix.
+4. **Listener** — Sprint near the Echo from further away than you could in Phase 3: it still reacts. Take a noise maker, set it down away from you with G, and hide. After 2 s you see the beeping subtitle and the Echo goes there.
+5. **Mimic** — With two players, a `[Radio]` call names a teammate and a room, while the HUD team list shows them somewhere else. Sometimes the Echo walks to the named room. A fake evidence item appears; examining it shows "dissolves into static" and the Echo hears it. The real evidence objective still works.
+6. **Blackout** — The subtitle `[the electrical hum falters...]` appears, then the lights in two rooms go dark for everyone. While it's dark, the Echo is faster and sees further. Hold **Restore power** on the generator-room switch: the lights return and the Echo hears it. If you don't, the lights return after 40 s.
+7. **Echo cues** — Near the Echo, subtitles show clicking, breathing, screech or sharp breath as it changes state.
+8. **Reduced flashes** — Set `Settings.ReducedFlashes = true` in `src/client/Settings.luau`: flickers become a smooth dim.
+9. **Round reset** — After a round ends, all lights are on, no fake evidence or noise makers remain, and nobody is still marked as carrying one. Play three rounds back to back without errors.
+
+## Phase 5 — Evidence and final decision (not started)
 
 ## Known issues / limitations
 - Dropped fuse returns to its original spot rather than where the carrier fell.
@@ -240,8 +313,10 @@ Run each and note pass/fail here.
 - On-screen RUN/LIGHT button positions are a best guess and need checking in the device emulator.
 - Calibration UI has buttons only (no keyboard shortcuts yet).
 - Escaped players are teleported straight to the lobby; no exit cutscene.
-- All art is placeholder geometry; no sounds (no verified asset IDs chosen).
-- The Echo has no animations: it glides upright. Its only state cue is eye colour until Phase 4 adds audio.
+- All art is placeholder geometry. No sound assets are configured, so every audio cue currently appears only as a subtitle. Add verified ids to `Config/Assets.Sounds` (keys are the `AssetKey` values in `Config/Audio.luau`).
+- The Echo has no animations: it glides upright. Its state cues are eye colour plus subtitled audio cues.
+- Escalation during a round is limited to event pacing and waking the Echo at extraction; the Echo itself does not get sharper as the timer runs down.
+- Room names (HUD and events) come from the generated layout; a hand-built map would need its own room lookup.
 - The Echo's tuning (speeds, ranges, timings in `Config/Enemy.luau`) is a first guess and needs balancing in playtests.
 - Players can stand on crates the Echo can't path onto. It gives up rather than getting stuck, but this may be exploitable; consider making furniture taller or adding a crate-climb later.
 

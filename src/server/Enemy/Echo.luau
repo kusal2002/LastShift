@@ -24,6 +24,8 @@ local EchoMover = require(script.Parent.EchoMover)
 
 type State = EchoBrain.State
 
+export type Tuning = typeof(EnemyConfig)
+
 export type Params = {
 	spawn: CFrame, -- floor point to stand on
 	patrolPoints: { Vector3 },
@@ -31,15 +33,20 @@ export type Params = {
 	getTargets: () -> { Player }, -- players it may see and attack
 	rng: Random,
 	parent: Instance,
+	tuning: Tuning?, -- anomaly-adjusted config (defaults to Config/Enemy)
+	darkTuning: Tuning?, -- used instead while isDark() is true
+	isDark: (() -> boolean)?,
+	onStateChanged: ((state: State, position: Vector3) -> ())?,
 }
 
 export type Echo = {
 	destroy: () -> (),
 	wake: () -> (),
+	lure: (position: Vector3) -> (),
 	getState: () -> State,
 }
 
--- Eye colour is the Echo's readable state cue until audio arrives in Phase 4.
+-- Eye colour is a visible state cue; Phase 4 adds matching audio cues via onStateChanged.
 local EYES = {
 	Calm = Color3.fromRGB(200, 205, 210),
 	Alert = Color3.fromRGB(255, 214, 150),
@@ -64,7 +71,8 @@ local function eyeColorFor(state: State): Color3
 end
 
 function Echo.new(params: Params): Echo
-	local cfg = EnemyConfig
+	local baseTuning: Tuning = params.tuning or EnemyConfig
+	local cfg = baseTuning -- swapped for darkTuning each tick while it is dark
 	local rig = EchoRig.build(params.spawn, params.parent)
 	local root = rig.root
 	local mover = EchoMover.new(rig.humanoid, root)
@@ -88,8 +96,13 @@ function Echo.new(params: Params): Echo
 	local lastStatus: EchoMover.Status = "Idle"
 	local failureStreak = 0
 	local running = true
-	local chaseSpeed = if params.solo then cfg.Speeds.Chase else cfg.Speeds.ChaseMultiplayer
-	local attackCooldown = if params.solo then cfg.SoloAttackCooldown else cfg.AttackCooldown
+	-- Read from the current tuning each time, so blackout boosts apply.
+	local function chaseSpeed(): number
+		return if params.solo then cfg.Speeds.Chase else cfg.Speeds.ChaseMultiplayer
+	end
+	local function attackCooldown(): number
+		return if params.solo then cfg.SoloAttackCooldown else cfg.AttackCooldown
+	end
 
 	local sightParams = RaycastParams.new()
 	sightParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -280,6 +293,10 @@ function Echo.new(params: Params): Echo
 		state = nextState
 		stateStarted = os.clock()
 		setEyes(eyeColorFor(nextState))
+		local notify = params.onStateChanged
+		if notify then
+			task.spawn(notify, nextState, root.Position)
+		end
 
 		if nextState == "Patrol" then
 			mover.setGoal(randomPatrolPoint(), cfg.Speeds.Patrol, cfg.Path.RepathIdle)
@@ -315,7 +332,7 @@ function Echo.new(params: Params): Echo
 	-- The hit lands only if the target is still close, visible and standing when the windup ends.
 	local function resolveAttack()
 		attackResolved = true
-		attackReadyAt = os.clock() + attackCooldown
+		attackReadyAt = os.clock() + attackCooldown()
 		local victim = target
 		if victim == nil then
 			return
@@ -340,6 +357,9 @@ function Echo.new(params: Params): Echo
 
 	local function tick(dt: number)
 		local now = os.clock()
+		local dark = params.darkTuning
+		local isDark = params.isDark
+		cfg = if dark and isDark and isDark() then dark else baseTuning
 		for index = #sounds, 1, -1 do
 			if now - sounds[index].time > cfg.SoundMemorySeconds then
 				table.remove(sounds, index)
@@ -405,7 +425,7 @@ function Echo.new(params: Params): Echo
 			end
 		elseif state == "Hunt" then
 			if lastSeen then
-				mover.setGoal(lastSeen, chaseSpeed, cfg.Path.RepathChase)
+				mover.setGoal(lastSeen, chaseSpeed(), cfg.Path.RepathChase)
 			end
 		elseif state == "Attack" then
 			if lastSeen then
@@ -469,6 +489,21 @@ function Echo.new(params: Params): Echo
 
 	function echo.wake()
 		awakeAt = os.clock()
+	end
+
+	-- Sends the Echo to check a position (used by the Mimic's fake calls). Only interrupts
+	-- calm states; it never abandons a chase for a lure.
+	function echo.lure(position: Vector3)
+		if state ~= "Patrol" and state ~= "Search" and state ~= "Investigate" then
+			return
+		end
+		soundGoal = position
+		if state == "Investigate" then
+			mover.setGoal(position, cfg.Speeds.Investigate, cfg.Path.RepathIdle)
+			stateStarted = os.clock()
+		else
+			setState("Investigate")
+		end
 	end
 
 	function echo.getState(): State

@@ -150,4 +150,16 @@ function MapGrid.validate(rows: { string }, mustMount: { [string]: boolean }?): 
 	return problems
 end
 
+export type Room = { Name: string, Rows: { number }, Cols: { number } }
+
+-- Name of the room containing (row, col), or nil if it is in no named room.
+function MapGrid.roomAt(rooms: { Room }, row: number, col: number): string?
+	for _, room in rooms do
+		if row >= room.Rows[1] and row <= room.Rows[2] and col >= room.Cols[1] and col <= room.Cols[2] then
+			return room.Name
+		end
+	end
+	return nil
+end
+
 return MapGrid

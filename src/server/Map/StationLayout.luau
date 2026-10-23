@@ -11,10 +11,8 @@
 --   X  extraction zone (loading bay)
 --   Q  flashlight charging station (wall-mounted)
 --   Z  Echo spawn (lair). Every L and C cell is also an Echo patrol point.
---
--- Rooms: storage (top left), operations (top middle), tower access (top right),
--- corridor (middle), generator (bottom left), entrance hall (bottom middle),
--- maintenance (bottom right), loading bay (beyond the exit door).
+--   G  backup power switch (wall-mounted); ends a blackout early
+--   N  noise maker pickup (shelf + marker)
 return {
 	CellSize = 8,
 	WallHeight = 14,
@@ -22,7 +20,7 @@ return {
 	Origin = { X = 0, Y = 100, Z = 0 },
 	LobbyOrigin = { X = 92, Y = 100, Z = -160 },
 	LobbySize = 64,
-	MountedChars = { P = true, R = true, B = true, Q = true },
+	MountedChars = { P = true, R = true, B = true, Q = true, G = true },
 	Rows = {
 		"########################",
 		"#E..F.#.......R..#F...E#",
@@ -31,16 +29,27 @@ return {
 		"#.....#..........#.....#",
 		"#.....#..........#....Q#",
 		"###.#######.#######.####",
-		"#......................#",
+		"#N....................N#",
 		"#...C......C.......C...#",
 		"###.#######.#######.####",
 		"#Q....#..........#.....#",
 		"#..L.P#...L..L...#..L.B#",
-		"#.....#...S..S...#.....#",
-		"#E....#..........#....E#",
+		"#.....#.N.S..S...#.....#",
+		"#E...G#..........#....E#",
 		"#.....#...S..S...#..F..#",
 		"###########DD###########",
 		"##########XXXX##########",
 		"########################",
+	},
+	-- Named areas (zero-based, inclusive). Shown in the HUD team list and used by events.
+	Rooms = {
+		{ Name = "Storage", Rows = { 1, 5 }, Cols = { 1, 5 } },
+		{ Name = "Operations", Rows = { 1, 5 }, Cols = { 7, 16 } },
+		{ Name = "Tower Access", Rows = { 1, 5 }, Cols = { 18, 22 } },
+		{ Name = "Corridor", Rows = { 6, 9 }, Cols = { 1, 22 } },
+		{ Name = "Generator Room", Rows = { 10, 14 }, Cols = { 1, 5 } },
+		{ Name = "Entrance Hall", Rows = { 10, 15 }, Cols = { 7, 16 } },
+		{ Name = "Maintenance", Rows = { 10, 14 }, Cols = { 18, 22 } },
+		{ Name = "Loading Bay", Rows = { 16, 16 }, Cols = { 10, 13 } },
 	},
 }
