@@ -9,7 +9,7 @@ local Shared = ReplicatedStorage.Shared
 local DirectorConfig = require(Shared.Config.Director)
 local RoundConfig = require(Shared.Config.Round)
 local AudioConfig = require(Shared.Config.Audio)
-local ObjectivesConfig = require(Shared.Config.Objectives)
+local Evidence = require(Shared.Config.Evidence)
 local Tags = require(Shared.Config.Tags)
 local Anomalies = require(Shared.Config.Anomalies)
 local ScareDirector = require(Shared.Logic.ScareDirector)
@@ -123,7 +123,15 @@ local function spawnFalseCue()
 		end
 	end
 	local spot = Selection.pickOne(free, nextInt)
-	local disguise = Selection.pickOne(ObjectivesConfig.Evidence.Items, nextInt)
+	-- Disguised as evidence that points at a different anomaly: a misleading signal.
+	local disguises = {}
+	local current = profile
+	for _, item in Evidence.Items do
+		if not item.Risky and (current == nil or item.Anomaly ~= current.Id) then
+			table.insert(disguises, item)
+		end
+	end
+	local disguise = Selection.pickOne(disguises, nextInt)
 	if spot == nil or disguise == nil then
 		return
 	end
@@ -147,8 +155,8 @@ local function spawnFalseCue()
 	InteractionService.createPrompt(part, {
 		ActionText = "Examine",
 		ObjectText = disguise.DisplayName,
-		HoldDuration = ObjectivesConfig.Evidence.HoldDuration,
-		MaxDistance = ObjectivesConfig.Evidence.InteractDistance,
+		HoldDuration = Evidence.HoldDuration,
+		MaxDistance = Evidence.InteractDistance,
 	}, function(player: Player)
 		if part.Parent == nil then
 			return
@@ -302,10 +310,12 @@ function DirectorService.beginRound(params: BeginParams)
 	LightingService.beginRound(onPowerRestored)
 end
 
--- Extraction: full intensity and an alarm.
-function DirectorService.setExtracting()
+-- Transmission and extraction run at full intensity. The alarm plays when the exit opens.
+function DirectorService.setExtracting(playAlarm: boolean?)
 	extracting = true
-	AudioEventService.play(getPlayers(), "ExtractionAlarm")
+	if playAlarm ~= false then
+		AudioEventService.play(getPlayers(), "ExtractionAlarm")
+	end
 end
 
 function DirectorService.endRound()

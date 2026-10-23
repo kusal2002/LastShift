@@ -1,30 +1,5 @@
 --!strict
--- Tuning for the Phase 1 objectives. Distances are in studs.
-export type EvidenceDef = {
-	Id: string,
-	DisplayName: string,
-	Description: string,
-}
-
-local evidenceItems: { EvidenceDef } = {
-	-- Placeholder pool. Phase 5 replaces this with evidence linked to each anomaly.
-	{
-		Id = "log_maintenance_07",
-		DisplayName = "Damaged Maintenance Log",
-		Description = "The last entry repeats the same sentence until the ink runs out.",
-	},
-	{
-		Id = "tape_relay_night",
-		DisplayName = "Unlabeled Relay Tape",
-		Description = "A recording of the operations room. Someone answers a call that never comes.",
-	},
-	{
-		Id = "reading_power_spike",
-		DisplayName = "Power Draw Printout",
-		Description = "The station drew full power for six minutes while the generator was offline.",
-	},
-}
-
+-- Tuning for the objectives. Distances are in studs. Evidence lives in Config/Evidence.
 local Objectives = table.freeze({
 	Interaction = table.freeze({
 		DistanceTolerance = 4, -- extra studs allowed for network latency
@@ -45,10 +20,9 @@ local Objectives = table.freeze({
 		InteractDistance = 8,
 		SubmitDistance = 14, -- player may step back slightly while the UI is open
 	}),
-	Evidence = table.freeze({
+	Transmitter = table.freeze({
 		InteractDistance = 8,
-		HoldDuration = 1,
-		Items = table.freeze(evidenceItems),
+		SubmitDistance = 14,
 	}),
 })
 

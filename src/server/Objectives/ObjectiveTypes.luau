@@ -4,16 +4,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
-local ObjectivesConfig = require(Shared.Config.Objectives)
+local Evidence = require(Shared.Config.Evidence)
 
 export type NotifyKind = "info" | "success" | "warn" | "danger"
 
 export type Context = {
 	nextInt: (number, number) -> number, -- seeded random whole number in [a, b]
 	roundFolder: Folder, -- parent for per-round objects; cleared on reset
+	anomalyId: string, -- this round's anomaly (server only)
 	markChanged: () -> (), -- call after any state change players should see
 	notify: (player: Player, text: string, kind: NotifyKind?) -> (),
-	recordEvidence: (item: ObjectivesConfig.EvidenceDef) -> (),
+	recordEvidence: (item: Evidence.EvidenceDef) -> (),
 }
 
 export type Objective = {

@@ -2,9 +2,9 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code written and checked offline) · `[✓]` verified in Studio
 
-**Current state (2026-10-23):** Phases 1–4 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
+**Current state (2026-10-23):** Phases 1–5 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phase 1 on `main`; Phase 2 on `phase-2/player-systems`, PR #1; Phase 3 on `phase-3/echo-ai`, PR #2 stacked on Phase 2; Phase 4 on `phase-4/anomalies`, stacked on Phase 3).
+Repository: https://github.com/kusal2002/LastShift (Phases 1–4 merged to `main`; Phase 5 on `phase-5/evidence-decision`).
 
 ---
 
@@ -304,7 +304,63 @@ For each anomaly, set `ForceAnomaly` in `src/shared/Config/Debug.luau` (Studio o
 8. **Reduced flashes** — Set `Settings.ReducedFlashes = true` in `src/client/Settings.luau`: flickers become a smooth dim.
 9. **Round reset** — After a round ends, all lights are on, no fake evidence or noise makers remain, and nobody is still marked as carrying one. Play three rounds back to back without errors.
 
-## Phase 5 — Evidence and final decision (not started)
+## Phase 5 — Evidence and final decision `[x]` (awaiting Studio test)
+
+### New round flow
+Investigation → **Decision** → **Transmission** (if the team transmits) → Extraction → Results. Aborting goes from Decision straight to Extraction.
+- **Decision** starts once all three objectives are done. The investigation timer keeps running. The radio console in Operations becomes the **Relay Transmitter** (prompt "Use transmitter").
+- The transmitter screen asks the team to classify the anomaly (Listener, Mimic, Blackout, or **Unsure**), then choose:
+  - **Transmit**: a 40 s countdown the team must survive. Event intensity goes to maximum, and the Echo wakes and heads for the transmitter. When the countdown ends, the exit opens. This pays a bigger reward.
+  - **Abort**: the exit opens immediately. This pays the base reward.
+- The first valid submission decides for the team. The server checks the phase, that the player is alive and not downed, that they're within 14 studs of the transmitter, a known anomaly id or "Unsure", and a known ending.
+- **A wrong classification** does not end the run. The transmitter shrieks (a loud noise plus a cue), the Echo wakes and comes to the transmitter, and the credit multiplier drops to ×0.75. A correct one gives ×1.5; Unsure gives ×1.
+
+### Evidence (`Config/Evidence.luau`)
+- 15 items: 4 standard and 1 risky per anomaly. Each has a stable id, name, description (a clue, never the answer), category, anomaly link and credit reward.
+- Each round places 3 standard items for the active anomaly at random evidence desks. 2 complete the objective ("Recover evidence (1/2)").
+- The **risky** item sits on a desk next to the Echo's lair (`K` in the layout). It's worth 30 instead of 10, it counts toward the objective, and taking it makes a loud noise. This is the "optional risk-reward evidence" deferred from Phase 4.
+- The Mimic's fake evidence is now disguised as evidence that points to a *different* anomaly: a misleading signal that never enters the notebook.
+- **Notebook:** a NOTES button (top right, any device) or J / gamepad D-pad left shows the recovered evidence with descriptions. The anomaly link is never sent to clients.
+
+### Rewards (`Config/Economy.luau`, `Logic/Rewards.luau`, `RewardService`)
+- Credits: 20 per objective + each evidence item's value, × the classification multiplier. If you didn't escape you keep 30% of that. On top: +75 if the transmission finished, +50 if you personally escaped.
+- XP: participation 25, 15 per objective, 5 per evidence item, 40 for escaping, 30 for a correct classification, 30 for a finished transmission.
+- **Granted at most once per player per round**: a per-round ledger keyed by user id. A duplicate request returns the first result and logs a warning. Until Phase 6 adds persistence, totals are kept as `SessionCredits` / `SessionXP` Player attributes.
+- Results screen: outcome, the anomaly revealed, the team's report (correct / wrong / unsure / none), the ending, credits and XP with a line-by-line breakdown, your status, objectives, evidence, and the team. It scrolls on small screens.
+
+### Checklist
+- [x] Evidence definitions (data-driven, linked to anomalies)
+- [x] Evidence collection (3 placed, 2 required, 1 optional risky)
+- [x] Classification UI
+- [x] Server-side classification
+- [x] Transmit and abort endings
+- [x] Extraction rewards, granted at most once per round
+- [ ] Studio playtest (steps below)
+
+### Offline results (actually run, 2026-10-23)
+- `lune run tests/run`: 65 passed, 0 failed. New tests cover:
+  - the new phase transitions (you can't skip the decision);
+  - evidence ids are unique and point at real anomalies;
+  - every anomaly has enough standard and risky evidence;
+  - no description names its anomaly;
+  - reward maths for abort, transmit, correct and wrong classification, and not escaping;
+  - breakdown lines add up to the total;
+  - the grant-once ledger.
+- `selene src`: 0 errors, 0 warnings · `stylua --check`: clean · `luau-lsp analyze` (strict): 0 errors · `rojo build`: OK
+
+### Studio test script (Phase 5 acceptance)
+1. **Evidence** — Start a round (force an anomaly in `Config/Debug`). Three glowing items are on desks; the HUD shows "Recover evidence (0/2)". Examine two: the objective completes and NOTES shows both, with clues that fit the forced anomaly.
+2. **Risky evidence** — The red-glowing item by the Echo's lair (tower room) is loud to take: the Echo hears it. It appears in NOTES marked "(rare)".
+3. **Decision** — After all objectives, the HUD shows FINAL DECISION and the radio console offers "Use transmitter". TRANSMIT and ABORT stay greyed out until you pick an answer.
+4. **Abort** — Pick the correct anomaly, then ABORT. The exit opens at once. Results show the anomaly, "(correct)", "Ending: aborted", and credits including the ×1.5 line.
+5. **Transmit** — New round: pick a wrong anomaly, then TRANSMIT. A rejection cue plays, the Echo comes to Operations, and the HUD shows TRANSMITTING 00:40. Survive it: the exit opens. Results show "(wrong)", ×0.75, and "+75 Transmission sent".
+6. **Transmit failure** — Die during the countdown: results show "transmission cut short" and no transmit bonus.
+7. **Unsure** — Pick Unsure: no multiplier line in the breakdown.
+8. **Validation** — From the command bar, fire `DecisionSubmit` with a made-up anomaly id, from far away, or a second time after a decision: nothing happens.
+9. **Rewards once** — Watch Output: exactly one "earned N credits" line per player per round.
+10. **Two players** — One files the report; the other's transmitter screen closes and both see who decided and what they chose.
+
+## Phase 6 — Progression and data (not started)
 
 ## Known issues / limitations
 - Dropped fuse returns to its original spot rather than where the carrier fell.
@@ -313,6 +369,8 @@ For each anomaly, set `ForceAnomaly` in `src/shared/Config/Debug.luau` (Studio o
 - On-screen RUN/LIGHT button positions are a best guess and need checking in the device emulator.
 - Calibration UI has buttons only (no keyboard shortcuts yet).
 - Escaped players are teleported straight to the lobby; no exit cutscene.
+- The first player to submit at the transmitter decides for the whole team; there is no team vote.
+- Credits and XP are session-only until Phase 6 adds saving.
 - All art is placeholder geometry. No sound assets are configured, so every audio cue currently appears only as a subtitle. Add verified ids to `Config/Assets.Sounds` (keys are the `AssetKey` values in `Config/Audio.luau`).
 - The Echo has no animations: it glides upright. Its state cues are eye colour plus subtitled audio cues.
 - Escalation during a round is limited to event pacing and waking the Echo at extraction; the Echo itself does not get sharper as the timer runs down.

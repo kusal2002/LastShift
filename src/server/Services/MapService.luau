@@ -161,6 +161,21 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			Tags.EvidenceSpawn,
 			parent
 		)
+	elseif char == "K" then
+		makePart({
+			Name = `RiskyDesk_{suffix}`,
+			Size = Vector3.new(4, 3, 2.5),
+			CFrame = CFrame.new(center + Vector3.new(0, 1.5, 0)),
+			Color = COLORS.Door,
+			Material = Enum.Material.CorrodedMetal,
+			Parent = parent,
+		})
+		makeMarker(
+			`RiskyEvidence_{suffix}`,
+			CFrame.new(center + Vector3.new(0, 3.1, 0)),
+			Tags.RiskyEvidenceSpawn,
+			parent
+		)
 	elseif char == "P" then
 		local cframe = mountedCFrame(row, col, 0.6, 5)
 		if cframe then

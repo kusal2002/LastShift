@@ -1,7 +1,14 @@
 --!strict
 -- Data shapes shared between server and client.
 
-export type Phase = "Lobby" | "Briefing" | "Investigation" | "Extraction" | "Results"
+export type Phase =
+	"Lobby"
+	| "Briefing"
+	| "Investigation"
+	| "Decision"
+	| "Transmission"
+	| "Extraction"
+	| "Results"
 export type PlayerStatus = "Alive" | "Escaped" | "Dead" | "Lost" | "Left"
 
 export type ObjectiveView = {
@@ -42,7 +49,26 @@ export type Snapshot = {
 	ExitOpen: boolean,
 	Briefing: BriefingView?,
 	Team: { TeamMemberView }, -- this round's participants; empty when not in a round
+	Evidence: { EvidenceView }, -- recovered this round; empty when not a participant
 }
+
+export type EvidenceView = {
+	Id: string,
+	DisplayName: string,
+	Description: string,
+	Category: string,
+	Risky: boolean,
+}
+
+export type AnomalyOption = { Id: string, DisplayName: string }
+
+-- Sent when a player opens the transmitter.
+export type DecisionOptions = {
+	Anomalies: { AnomalyOption },
+	TransmitSeconds: number,
+}
+
+export type RewardLine = { Label: string, Amount: number }
 
 export type TeamMemberResult = {
 	Name: string,
@@ -59,6 +85,14 @@ export type Results = {
 	Evidence: { string },
 	DurationSeconds: number,
 	Team: { TeamMemberResult },
+	AnomalyName: string, -- revealed at the end of the round
+	Classification: string, -- "Correct" | "Incorrect" | "None"
+	ClassifiedAs: string?, -- what the team chose, if anything
+	Ending: string, -- "Transmit" | "Abort" | "None"
+	TransmitCompleted: boolean,
+	Credits: number,
+	XP: number,
+	Breakdown: { RewardLine },
 }
 
 export type AudioCuePayload = {

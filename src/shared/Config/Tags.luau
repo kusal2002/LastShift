@@ -16,5 +16,6 @@ return table.freeze({
 	EchoPatrol = "EchoPatrol", -- floor markers the Echo wanders between
 	StationLight = "StationLight", -- ceiling lamp; attribute Room names its area
 	PowerSwitch = "PowerSwitch", -- backup power switch that ends a blackout
+	RiskyEvidenceSpawn = "RiskyEvidenceSpawn", -- marker for the optional high-value evidence (near the lair)
 	DecoySpawn = "DecoySpawn", -- marker where a noise maker can be placed
 })
