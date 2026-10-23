@@ -12,6 +12,7 @@ Remotes.Names = table.freeze({
 	CalibrationOpen = "CalibrationOpen",
 	CalibrationClose = "CalibrationClose",
 	AudioCue = "AudioCue", -- (payload: AudioCuePayload)
+	ProfileUpdate = "ProfileUpdate", -- (view: ProfileView)
 	DecisionOpen = "DecisionOpen", -- (options: DecisionOptions)
 	DecisionClose = "DecisionClose", -- ()
 	LightFlicker = "LightFlicker", -- (room: string, seconds: number) cosmetic only
@@ -23,6 +24,9 @@ Remotes.Names = table.freeze({
 	SprintRequest = "SprintRequest", -- (wantsSprint: boolean)
 	FlashlightToggle = "FlashlightToggle", -- ()
 	DecoyUse = "DecoyUse", -- () place the carried noise maker
+	EquipCosmetic = "EquipCosmetic", -- (slot: string, id: string)
+	BuyCosmetic = "BuyCosmetic", -- (id: string) with credits
+	SaveSetting = "SaveSetting", -- (key: string, value: boolean)
 	DecisionSubmit = "DecisionSubmit", -- (anomalyId: string, ending: "Transmit" | "Abort")
 	DevCommand = "DevCommand", -- (command: string) Studio only; ignored on live servers
 })

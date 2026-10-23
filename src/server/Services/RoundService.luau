@@ -30,6 +30,7 @@ local DirectorService = require(script.Parent.DirectorService)
 local DecoyService = require(script.Parent.DecoyService)
 local DecisionService = require(script.Parent.DecisionService)
 local RewardService = require(script.Parent.RewardService)
+local ProfileService = require(script.Parent.ProfileService)
 local AudioEventService = require(script.Parent.AudioEventService)
 local NoiseService = require(script.Parent.NoiseService)
 local Rewards = require(Shared.Logic.Rewards)
@@ -209,9 +210,11 @@ local function endRound(reason: string)
 	end
 	local evidenceNames: { string } = {}
 	local evidenceRewards: { number } = {}
+	local evidenceIds: { string } = {}
 	for _, item in ObjectiveService.getEvidence() do
 		table.insert(evidenceNames, item.DisplayName)
 		table.insert(evidenceRewards, item.Reward)
+		table.insert(evidenceIds, item.Id)
 	end
 	local completed = ObjectiveService.completedCount()
 	local total = ObjectiveService.total()
@@ -231,7 +234,7 @@ local function endRound(reason: string)
 				ending = ending,
 				transmitCompleted = transmitCompleted,
 				escaped = status == "Escaped",
-			})
+			}, { anomalyId = activeAnomaly.Id, evidenceIds = evidenceIds })
 			local results: Types.Results = {
 				RoundId = roundId,
 				Success = success,
@@ -622,6 +625,11 @@ function RoundService.Start()
 			end
 			-- Players inside the station can't queue; everyone else (lobby, escaped, dead) can.
 			if participants[player] == "Alive" then
+				return
+			end
+			-- Rewards need a loaded profile to be saved into.
+			if wantsReady and not ProfileService.isLoaded(player) then
+				RemoteService.notify(player, "Still loading your profile...", "info")
 				return
 			end
 			if wantsReady then

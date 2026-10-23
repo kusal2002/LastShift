@@ -36,6 +36,7 @@ type Entry = {
 	downedEndsAt: number?, -- bleed-out (team) or self-recovery (solo) time
 	revivePrompt: ProximityPrompt?,
 	light: SpotLight?,
+	flashlightColor: Color3, -- cosmetic beam colour from the equipped skin
 	sprintNoiseTimer: number, -- seconds until the next sprint footstep noise
 	published: { [string]: any },
 }
@@ -70,6 +71,7 @@ local function newEntry(): Entry
 		downedEndsAt = nil,
 		revivePrompt = nil,
 		light = nil,
+		flashlightColor = FLASHLIGHT_COLOR,
 		sprintNoiseTimer = 0,
 		published = {},
 	}
@@ -131,7 +133,7 @@ local function attachLight(entry: Entry, character: Model)
 	light.Range = PlayerConfig.Flashlight.Range
 	light.Angle = PlayerConfig.Flashlight.Angle
 	light.Brightness = PlayerConfig.Flashlight.Brightness
-	light.Color = FLASHLIGHT_COLOR
+	light.Color = entry.flashlightColor
 	light.Shadows = true
 	light.Enabled = entry.flashlightOn
 	light.Parent = attachment
@@ -455,6 +457,19 @@ end
 function PlayerStateService.getBattery(player: Player): number
 	local entry = entries[player]
 	return if entry then entry.battery else 0
+end
+
+-- Cosmetic only: the beam colour of the equipped flashlight skin. Range and brightness never change.
+function PlayerStateService.setFlashlightColor(player: Player, color: Color3)
+	local entry = entries[player]
+	if entry == nil then
+		return
+	end
+	entry.flashlightColor = color
+	local light = entry.light
+	if light then
+		light.Color = color
+	end
 end
 
 function PlayerStateService.setBattery(player: Player, value: number)

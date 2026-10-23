@@ -3,18 +3,26 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Shared": { "$path": "src/shared" }
+      "Shared": {
+        "$path": "src/shared"
+      }
     },
     "ServerScriptService": {
-      "Server": { "$path": "src/server" }
+      "Server": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": { "$path": "src/client" }
+        "Client": {
+          "$path": "src/client"
+        }
       },
       "StarterCharacterScripts": {
         "$className": "StarterCharacterScripts",
-        "Health": { "$path": "src/character/Health.server.luau" }
+        "Health": {
+          "$path": "src/character/Health.server.luau"
+        }
       },
       "$properties": {
         "CharacterWalkSpeed": 12,
@@ -22,19 +30,36 @@
       }
     },
     "Players": {
-      "$properties": { "CharacterAutoLoads": true }
+      "$properties": {
+        "CharacterAutoLoads": true
+      }
     },
     "Workspace": {
-      "$properties": { "StreamingEnabled": false }
+      "$properties": {
+        "StreamingEnabled": false
+      }
     },
     "Lighting": {
       "$properties": {
-        "Ambient": [0.1, 0.11, 0.13],
-        "OutdoorAmbient": [0.12, 0.13, 0.16],
+        "Ambient": [
+          0.1,
+          0.11,
+          0.13
+        ],
+        "OutdoorAmbient": [
+          0.12,
+          0.13,
+          0.16
+        ],
         "Brightness": 1,
         "ClockTime": 0,
         "FogEnd": 220,
-        "FogColor": [0.05, 0.06, 0.08]
+        "FogColor": [
+          0.05,
+          0.06,
+          0.08
+        ],
+        "Technology": "Voxel"
       }
     }
   }

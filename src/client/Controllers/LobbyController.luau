@@ -1,14 +1,20 @@
 --!strict
--- Lobby panel: player/ready count, countdown, and the PLAY / CANCEL button.
--- Also shown to anyone not inside the station during a round, so they can queue for the next one.
+-- Lobby panel: your level, credits and badge; player/ready count; countdown; PLAY / CANCEL;
+-- and the CASEBOOK and LOCKER screens. Also shown to anyone not inside the station during a
+-- round, so they can queue for the next one.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Remotes = require(Shared.Remotes)
 local Types = require(Shared.Types)
+local Cosmetics = require(Shared.Config.Cosmetics)
 local Client = script.Parent.Parent
 local State = require(Client.State)
+local ProfileState = require(Client.ProfileState)
+local Settings = require(Client.Settings)
 local Theme = require(Client.UI.Theme)
+local CasebookController = require(script.Parent.CasebookController)
+local LockerController = require(script.Parent.LockerController)
 
 local LobbyController = {}
 
@@ -21,9 +27,14 @@ function LobbyController.start()
 
 	Theme.label(panel, "LAST SHIFT", 28, Theme.Colors.Amber, true)
 	Theme.label(panel, "SIGNAL LOST", 14, Theme.Colors.Muted)
+	local profileLine = Theme.label(panel, "Loading profile...", 15, Theme.Colors.Green, true)
+	local progressLine = Theme.label(panel, "", 13, Theme.Colors.Muted)
 	local status = Theme.label(panel, "", 16)
 	local countdown = Theme.label(panel, "", 18, Theme.Colors.Amber, true)
 	local button = Theme.button(panel, "PLAY")
+	local menuRow = Theme.row(panel, 44)
+	local casebookButton = Theme.rowButton(menuRow, "CASEBOOK", 2, Theme.Colors.Muted)
+	local lockerButton = Theme.rowButton(menuRow, "LOCKER", 2, Theme.Colors.Muted)
 
 	button.Activated:Connect(function()
 		local snapshot = State.get()
@@ -31,6 +42,31 @@ function LobbyController.start()
 			playRequest:FireServer(not snapshot.IsReady)
 		end
 	end)
+	casebookButton.Activated:Connect(function()
+		LockerController.close()
+		CasebookController.toggle()
+	end)
+	lockerButton.Activated:Connect(function()
+		CasebookController.close()
+		LockerController.toggle()
+	end)
+
+	local function renderProfile()
+		local view = ProfileState.get()
+		if view == nil then
+			profileLine.Text = "Loading profile..."
+			progressLine.Text = ""
+			return
+		end
+		local badge = Cosmetics.ById[view.Equipped.Badge or ""]
+		local badgeText = if badge then `  ·  {badge.DisplayName}` else ""
+		profileLine.Text = `LEVEL {view.Level}  ·  {view.Credits} CREDITS{badgeText}`
+		local xpText = if view.ToNext > 0
+			then `XP {view.IntoLevel}/{view.ToNext} to level {view.Level + 1}`
+			else "Max level"
+		local warning = if view.Persistent then "" else "   (Studio test data: not saved)"
+		progressLine.Text = xpText .. warning
+	end
 
 	local function render()
 		local snapshot = State.get()
@@ -40,6 +76,13 @@ function LobbyController.start()
 		end
 		local inRound = snapshot.IsParticipant and snapshot.Phase ~= "Lobby"
 		gui.Enabled = not inRound or (snapshot.Status ~= "Alive" and snapshot.Phase ~= "Results")
+		if
+			not gui.Enabled
+			or (snapshot.IsParticipant and snapshot.Status == "Alive" and snapshot.Phase ~= "Lobby")
+		then
+			CasebookController.close()
+			LockerController.close()
+		end
 		button.Text = if snapshot.IsReady then "CANCEL" else "PLAY"
 
 		if snapshot.Phase == "Lobby" then
@@ -60,8 +103,13 @@ function LobbyController.start()
 		end
 	end
 
+	ProfileState.changed:Connect(function(view: Types.ProfileView)
+		Settings.loadFrom(view.Settings)
+		renderProfile()
+	end)
 	State.changed:Connect(render)
 	State.clock:Connect(render)
+	renderProfile()
 	render()
 end
 
