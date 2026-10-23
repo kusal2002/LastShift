@@ -20,6 +20,8 @@ local MapService = require(script.Parent.MapService)
 local InteractionService = require(script.Parent.InteractionService)
 local ObjectiveService = require(script.Parent.ObjectiveService)
 local ExtractionService = require(script.Parent.ExtractionService)
+local PlayerStateService = require(script.Parent.PlayerStateService)
+local ChargingService = require(script.Parent.ChargingService)
 
 type Phase = Types.Phase
 type Status = Types.PlayerStatus
@@ -67,6 +69,33 @@ local function alivePlayers(): { Player }
 	return list
 end
 
+-- Alive players who can act (not downed). Downed players can't extract.
+local function ablePlayers(): { Player }
+	local list = {}
+	for _, player in alivePlayers() do
+		if not PlayerStateService.isDowned(player) then
+			table.insert(list, player)
+		end
+	end
+	return list
+end
+
+local function buildTeam(): { Types.TeamMemberView }
+	local team: { Types.TeamMemberView } = {}
+	for player in participants do
+		table.insert(team, {
+			UserId = player.UserId,
+			Name = player.DisplayName,
+			Status = participants[player],
+			Downed = PlayerStateService.isDowned(player),
+		})
+	end
+	table.sort(team, function(a: Types.TeamMemberView, b: Types.TeamMemberView)
+		return a.Name < b.Name
+	end)
+	return team
+end
+
 local function buildSnapshot(player: Player): Types.Snapshot
 	local status = participants[player]
 	local isParticipant = status ~= nil and status ~= "Left"
@@ -91,6 +120,7 @@ local function buildSnapshot(player: Player): Types.Snapshot
 		Objectives = if isParticipant then ObjectiveService.getViews() else {},
 		ExitOpen = ExtractionService.isOpen(),
 		Briefing = briefing,
+		Team = if isParticipant then buildTeam() else {},
 	}
 end
 
@@ -135,6 +165,8 @@ local setPhase: (nextPhase: Phase) -> ()
 local function resetRound()
 	ObjectiveService.reset()
 	ExtractionService.close()
+	ChargingService.reset()
+	PlayerStateService.endRound()
 	for player, status in participants do
 		if player.Parent == Players and (status == "Alive" or status == "Lost") then
 			sendToLobby(player)
@@ -254,6 +286,8 @@ setPhase = function(nextPhase: Phase)
 				sendToStation(player)
 			end
 		end
+		PlayerStateService.beginRound(alivePlayers())
+		ChargingService.beginRound()
 		-- If the map lacked objective parts, everything may already count as done.
 		if ObjectiveService.allComplete() then
 			task.defer(function()
@@ -302,13 +336,14 @@ local function updateLobby()
 end
 
 local function updateExtraction(dt: number)
-	local escaped, entered = ExtractionService.update(dt, alivePlayers())
+	local escaped, entered = ExtractionService.update(dt, ablePlayers())
 	for _, player in entered do
 		RemoteService.notify(player, "Hold position. Extracting...", "info")
 	end
 	for _, player in escaped do
 		participants[player] = "Escaped"
 		ObjectiveService.onPlayerRemoved(player)
+		PlayerStateService.removeFromRound(player)
 		sendToLobby(player)
 		RemoteService.notify(player, "You made it out.", "success")
 	end
@@ -343,6 +378,7 @@ local function onDied(player: Player)
 	participants[player] = "Dead"
 	ObjectiveService.onPlayerRemoved(player)
 	ExtractionService.forget(player)
+	PlayerStateService.removeFromRound(player)
 	RemoteService.notify(player, "You didn't make it. Waiting for the shift to end.", "danger")
 	broadcast()
 	checkEnd(false)
@@ -408,8 +444,25 @@ function RoundService.Init()
 		if participants[player] ~= "Alive" then
 			return false, nil
 		end
+		if PlayerStateService.isDowned(player) then
+			return false, "You can't do that while down."
+		end
 		return true, nil
 	end)
+	PlayerStateService.setHooks({
+		isActive = function(player: Player): boolean
+			return RoundTransitions.isActiveRound(phase) and participants[player] == "Alive"
+		end,
+		onChanged = broadcast,
+	})
+end
+
+-- Studio-only (called by DevCommandService): end the current phase timer now.
+function RoundService.devSkipTimer()
+	if phaseEndsAt ~= nil then
+		phaseEndsAt = now()
+		broadcast()
+	end
 end
 
 function RoundService.Start()

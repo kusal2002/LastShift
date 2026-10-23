@@ -16,6 +16,9 @@ Remotes.Names = table.freeze({
 	PlayRequest = "PlayRequest", -- (wantsReady: boolean)
 	CalibrationSubmit = "CalibrationSubmit", -- (frequency: number)
 	CalibrationCancel = "CalibrationCancel", -- ()
+	SprintRequest = "SprintRequest", -- (wantsSprint: boolean)
+	FlashlightToggle = "FlashlightToggle", -- ()
+	DevCommand = "DevCommand", -- (command: string) Studio only; ignored on live servers
 })
 
 -- Client helper: waits for a remote created by the server.

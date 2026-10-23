@@ -172,6 +172,7 @@ H.test("station layout has every required marker", function()
 	H.ok((counts.B or 0) >= 1, "needs a frequency board")
 	H.ok((counts.D or 0) >= 1, "needs an exit door")
 	H.ok((counts.X or 0) >= 1, "needs an extraction zone")
+	H.ok((counts.Q or 0) >= 1, "needs a charging station")
 end)
 
 H.test("validator catches broken layouts", function()

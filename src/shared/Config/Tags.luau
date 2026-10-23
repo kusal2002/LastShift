@@ -11,4 +11,5 @@ return table.freeze({
 	ExtractionZone = "ExtractionZone", -- non-colliding box; stand inside to escape
 	ExitDoor = "ExitDoor", -- part that opens when extraction starts
 	LobbySpawn = "LobbySpawn", -- the lobby SpawnLocation
+	ChargingStation = "ChargingStation", -- wall unit that refills flashlight batteries
 })

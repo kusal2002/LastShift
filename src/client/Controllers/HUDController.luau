@@ -1,11 +1,14 @@
 --!strict
--- In-round HUD (phase, timer, objectives) and toast notifications from the server.
--- Toasts carry a text tag as well as a colour, so meaning never depends on colour alone.
+-- In-round HUD (phase, timer, objectives, team), survival meters, and toast notifications.
+-- Status is always shown as text as well as colour, so meaning never depends on colour alone.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage.Shared
 local Remotes = require(Shared.Remotes)
+local PlayerConfig = require(Shared.Config.Player)
 local Client = script.Parent.Parent
 local State = require(Client.State)
 local Theme = require(Client.UI.Theme)
@@ -18,6 +21,14 @@ local KIND_STYLE: { [string]: { color: Color3, tag: string } } = {
 	success = { color = Theme.Colors.Green, tag = "[OK] " },
 	warn = { color = Theme.Colors.Amber, tag = "[!] " },
 	danger = { color = Theme.Colors.Red, tag = "[!!] " },
+}
+
+local TEAM_STATUS: { [string]: string } = {
+	Alive = "OK",
+	Escaped = "ESCAPED",
+	Dead = "LOST",
+	Lost = "LEFT BEHIND",
+	Left = "DISCONNECTED",
 }
 
 local HUDController = {}
@@ -107,10 +118,13 @@ local function buildHud()
 		if snapshot == nil then
 			return
 		end
-		-- Only rebuild rows when objective text actually changed.
+		-- Only rebuild rows when objective or team text actually changed.
 		local key = ""
 		for _, objective in snapshot.Objectives do
 			key ..= `{objective.Id}:{objective.Complete}:{objective.Detail};`
+		end
+		for _, member in snapshot.Team do
+			key ..= `{member.UserId}:{member.Status}:{member.Downed};`
 		end
 		if key == lastObjectives then
 			return
@@ -126,6 +140,18 @@ local function buildHud()
 			local color = if objective.Complete then Theme.Colors.Muted else Theme.Colors.Text
 			Theme.label(list, mark .. objective.Label, 15, color, not objective.Complete)
 			Theme.label(list, "    " .. objective.Detail, 13, Theme.Colors.Muted)
+		end
+		if #snapshot.Team > 1 then
+			Theme.label(list, "TEAM", 13, Theme.Colors.Muted, true)
+			for _, member in snapshot.Team do
+				local text, color = TEAM_STATUS.Alive, Theme.Colors.Green
+				if member.Status == "Alive" and member.Downed then
+					text, color = "DOWN", Theme.Colors.Red
+				elseif member.Status ~= "Alive" then
+					text, color = TEAM_STATUS[member.Status] or member.Status, Theme.Colors.Muted
+				end
+				Theme.label(list, `{member.Name} - {text}`, 13, color)
+			end
 		end
 	end
 
@@ -159,9 +185,116 @@ local function buildHud()
 	render()
 end
 
+type Meter = { row: Frame, fill: Frame, value: TextLabel }
+
+local function makeMeter(parent: Instance, name: string, color: Color3): Meter
+	local row = Instance.new("Frame")
+	row.Name = name
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 18)
+	row.LayoutOrder = #parent:GetChildren()
+	row.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(0, 70, 1, 0)
+	label.Text = name
+	label.TextSize = 12
+	label.TextColor3 = Theme.Colors.Muted
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.FontFace = Theme.Bold
+	label.Parent = row
+
+	local track = Instance.new("Frame")
+	track.BackgroundColor3 = Theme.Colors.Button
+	track.BorderSizePixel = 0
+	track.Position = UDim2.new(0, 72, 0.5, -4)
+	track.Size = UDim2.new(1, -122, 0, 8)
+	track.Parent = row
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = color
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.Parent = track
+
+	local value = Instance.new("TextLabel")
+	value.BackgroundTransparency = 1
+	value.AnchorPoint = Vector2.new(1, 0)
+	value.Position = UDim2.fromScale(1, 0)
+	value.Size = UDim2.new(0, 46, 1, 0)
+	value.TextSize = 12
+	value.TextColor3 = Theme.Colors.Text
+	value.TextXAlignment = Enum.TextXAlignment.Right
+	value.FontFace = Theme.Regular
+	value.Parent = row
+
+	return { row = row, fill = fill, value = value }
+end
+
+local function setMeter(meter: Meter, fraction: number, text: string)
+	meter.fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+	meter.value.Text = text
+end
+
+-- Health, stamina and flashlight battery, bottom centre. Values come from server-set attributes.
+local function buildMeters()
+	local player = Players.LocalPlayer
+	local gui = Theme.screenGui("Meters", 3)
+	local panel = Theme.panel(gui, "Meters", 300)
+	panel.AnchorPoint = Vector2.new(0.5, 1)
+	panel.Position = UDim2.new(0.5, 0, 1, -16)
+	panel.Size = UDim2.new(0.6, 0, 0, 0)
+
+	local health = makeMeter(panel, "HEALTH", Theme.Colors.Red)
+	local stamina = makeMeter(panel, "STAMINA", Theme.Colors.Green)
+	local battery = makeMeter(panel, "LIGHT", Theme.Colors.Amber)
+	local hints = Theme.label(panel, "[Shift] sprint   [F] flashlight", 12, Theme.Colors.Muted)
+	hints.LayoutOrder = 100
+	hints.Visible = UserInputService.KeyboardEnabled
+
+	local function render()
+		local snapshot = State.get()
+		local visible = snapshot ~= nil
+			and snapshot.IsParticipant
+			and snapshot.Status == "Alive"
+			and (snapshot.Phase == "Investigation" or snapshot.Phase == "Extraction")
+		gui.Enabled = visible
+		if not visible then
+			return
+		end
+
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if player:GetAttribute("Downed") == true then
+			setMeter(health, 0, "DOWN")
+		elseif humanoid then
+			setMeter(health, humanoid.Health / humanoid.MaxHealth, `{math.ceil(humanoid.Health)}`)
+		end
+
+		local staminaValue = tonumber(player:GetAttribute("Stamina")) or 100
+		setMeter(stamina, staminaValue / PlayerConfig.Stamina.Max, `{staminaValue}%`)
+
+		local batteryValue = tonumber(player:GetAttribute("Battery")) or 100
+		local on = player:GetAttribute("FlashlightOn") == true
+		setMeter(
+			battery,
+			batteryValue / PlayerConfig.Flashlight.MaxBattery,
+			`{if on then "ON" else "OFF"} {batteryValue}%`
+		)
+	end
+
+	for _, attribute in { "Stamina", "Battery", "FlashlightOn", "Downed" } do
+		player:GetAttributeChangedSignal(attribute):Connect(render)
+	end
+	State.changed:Connect(render)
+	State.clock:Connect(render)
+	render()
+end
+
 function HUDController.start()
 	buildToasts()
 	buildHud()
+	buildMeters()
 end
 
 return HUDController

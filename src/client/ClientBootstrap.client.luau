@@ -14,6 +14,10 @@ local controllers: { any } = {
 	require(Controllers.BriefingController),
 	require(Controllers.CalibrationController),
 	require(Controllers.ResultsController),
+	require(Controllers.InputController),
+	require(Controllers.DownedController),
+	require(Controllers.SpectateController),
+	require(Controllers.DevController), -- does nothing outside Studio
 }
 
 for _, controller in controllers do
