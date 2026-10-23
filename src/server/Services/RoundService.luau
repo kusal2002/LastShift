@@ -22,6 +22,7 @@ local ObjectiveService = require(script.Parent.ObjectiveService)
 local ExtractionService = require(script.Parent.ExtractionService)
 local PlayerStateService = require(script.Parent.PlayerStateService)
 local ChargingService = require(script.Parent.ChargingService)
+local EnemyService = require(script.Parent.EnemyService)
 
 type Phase = Types.Phase
 type Status = Types.PlayerStatus
@@ -166,6 +167,7 @@ local function resetRound()
 	ObjectiveService.reset()
 	ExtractionService.close()
 	ChargingService.reset()
+	EnemyService.endRound()
 	PlayerStateService.endRound()
 	for player, status in participants do
 		if player.Parent == Players and (status == "Alive" or status == "Lost") then
@@ -286,8 +288,10 @@ setPhase = function(nextPhase: Phase)
 				sendToStation(player)
 			end
 		end
-		PlayerStateService.beginRound(alivePlayers())
+		local entering = alivePlayers()
+		PlayerStateService.beginRound(entering)
 		ChargingService.beginRound()
+		EnemyService.beginRound(#entering == 1)
 		-- If the map lacked objective parts, everything may already count as done.
 		if ObjectiveService.allComplete() then
 			task.defer(function()
@@ -449,6 +453,8 @@ function RoundService.Init()
 		end
 		return true, nil
 	end)
+	-- The Echo only targets players who are inside, alive and not downed.
+	EnemyService.setTargetProvider(ablePlayers)
 	PlayerStateService.setHooks({
 		isActive = function(player: Player): boolean
 			return RoundTransitions.isActiveRound(phase) and participants[player] == "Alive"

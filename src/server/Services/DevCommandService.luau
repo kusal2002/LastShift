@@ -1,5 +1,5 @@
 --!strict
--- Studio-only test commands (F6 damage, F7 skip phase timer, F8 drain battery).
+-- Studio-only test commands (F6 damage, F7 skip phase timer, F8 drain battery, F9 wake the Echo).
 -- Nothing is connected on live servers, and every command re-checks RunService:IsStudio().
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -10,6 +10,7 @@ local Log = require(Shared.Util.Log)
 local RemoteService = require(script.Parent.RemoteService)
 local PlayerStateService = require(script.Parent.PlayerStateService)
 local RoundService = require(script.Parent.RoundService)
+local EnemyService = require(script.Parent.EnemyService)
 
 local DevCommandService = {}
 
@@ -30,13 +31,16 @@ function DevCommandService.Start()
 			elseif command == "SkipTimer" then
 				RoundService.devSkipTimer()
 				RemoteService.notify(player, "[DEV] Phase timer skipped", "info")
+			elseif command == "WakeEcho" then
+				EnemyService.devWake()
+				RemoteService.notify(player, "[DEV] Echo awake", "info")
 			elseif command == "DrainBattery" then
 				PlayerStateService.setBattery(player, 5)
 				RemoteService.notify(player, "[DEV] Battery set to 5%", "info")
 			end
 		end
 	)
-	Log.info("Dev", "Studio dev commands on: F6 damage, F7 skip timer, F8 drain battery")
+	Log.info("Dev", "Studio dev commands on: F6 damage, F7 skip timer, F8 drain battery, F9 wake Echo")
 end
 
 return DevCommandService

@@ -12,4 +12,6 @@ return table.freeze({
 	ExitDoor = "ExitDoor", -- part that opens when extraction starts
 	LobbySpawn = "LobbySpawn", -- the lobby SpawnLocation
 	ChargingStation = "ChargingStation", -- wall unit that refills flashlight batteries
+	EchoSpawn = "EchoSpawn", -- floor marker where the Echo appears each round
+	EchoPatrol = "EchoPatrol", -- floor markers the Echo wanders between
 })

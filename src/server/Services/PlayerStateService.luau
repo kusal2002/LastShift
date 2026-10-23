@@ -15,8 +15,10 @@ local Remotes = require(Shared.Remotes)
 local Stamina = require(Shared.Logic.Stamina)
 local Damage = require(Shared.Logic.Damage)
 local Log = require(Shared.Util.Log)
+local EnemyConfig = require(Shared.Config.Enemy)
 local RemoteService = require(script.Parent.RemoteService)
 local InteractionService = require(script.Parent.InteractionService)
+local NoiseService = require(script.Parent.NoiseService)
 
 export type Hooks = {
 	isActive: (player: Player) -> boolean, -- participant, alive, in an active round phase
@@ -34,6 +36,7 @@ type Entry = {
 	downedEndsAt: number?, -- bleed-out (team) or self-recovery (solo) time
 	revivePrompt: ProximityPrompt?,
 	light: SpotLight?,
+	sprintNoiseTimer: number, -- seconds until the next sprint footstep noise
 	published: { [string]: any },
 }
 
@@ -67,6 +70,7 @@ local function newEntry(): Entry
 		downedEndsAt = nil,
 		revivePrompt = nil,
 		light = nil,
+		sprintNoiseTimer = 0,
 		published = {},
 	}
 end
@@ -154,6 +158,10 @@ local function revive(player: Player, entry: Entry, reviver: Player?)
 	RemoteService.notify(player, "You're back on your feet.", "success")
 	if reviver then
 		RemoteService.notify(reviver, `You revived {player.DisplayName}.`, "success")
+		local root = InteractionService.getRoot(player)
+		if root then
+			NoiseService.emit(root.Position, EnemyConfig.Noise.Revive, "Revive")
+		end
 	end
 	publish(player, entry)
 	hooks.onChanged()
@@ -240,6 +248,17 @@ local function update(dt: number)
 			local wantsSprint = entry.wantsSprint and not entry.health.downed
 			entry.stamina, entry.sprinting =
 				Stamina.step(entry.stamina, dt, wantsSprint, moving, PlayerConfig.Stamina)
+
+			-- Sprinting is loud: the Echo can hear running footsteps. Walking is silent.
+			if entry.sprinting and entry.inRound then
+				entry.sprintNoiseTimer -= dt
+				if entry.sprintNoiseTimer <= 0 then
+					entry.sprintNoiseTimer = EnemyConfig.Noise.SprintInterval
+					NoiseService.emit(root.Position, EnemyConfig.Noise.Sprint, "Sprint")
+				end
+			else
+				entry.sprintNoiseTimer = 0
+			end
 
 			if entry.flashlightOn and entry.inRound then
 				entry.battery = math.max(0, entry.battery - PlayerConfig.Flashlight.DrainPerSecond * dt)
@@ -422,10 +441,15 @@ function PlayerStateService.isDowned(player: Player): boolean
 	return entry ~= nil and entry.health.downed
 end
 
--- Phase 3 uses this to turn sprinting into noise for the enemy.
 function PlayerStateService.isSprinting(player: Player): boolean
 	local entry = entries[player]
 	return entry ~= nil and entry.sprinting
+end
+
+-- A lit flashlight makes the player easier for the Echo to spot.
+function PlayerStateService.isFlashlightOn(player: Player): boolean
+	local entry = entries[player]
+	return entry ~= nil and entry.flashlightOn
 end
 
 function PlayerStateService.getBattery(player: Player): number
