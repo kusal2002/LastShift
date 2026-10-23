@@ -10,6 +10,7 @@
 --   D  exit door (opens at extraction)
 --   X  extraction zone (loading bay)
 --   Q  flashlight charging station (wall-mounted)
+--   Z  Echo spawn (lair). Every L and C cell is also an Echo patrol point.
 --
 -- Rooms: storage (top left), operations (top middle), tower access (top right),
 -- corridor (middle), generator (bottom left), entrance hall (bottom middle),
@@ -25,7 +26,7 @@ return {
 	Rows = {
 		"########################",
 		"#E..F.#.......R..#F...E#",
-		"#.....#..........#.....#",
+		"#.....#..........#..Z..#",
 		"#..L..#...L..L...#..L..#",
 		"#.....#..........#.....#",
 		"#.....#..........#....Q#",

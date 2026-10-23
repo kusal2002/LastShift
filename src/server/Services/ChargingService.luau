@@ -11,6 +11,8 @@ local MapService = require(script.Parent.MapService)
 local InteractionService = require(script.Parent.InteractionService)
 local PlayerStateService = require(script.Parent.PlayerStateService)
 local RemoteService = require(script.Parent.RemoteService)
+local NoiseService = require(script.Parent.NoiseService)
+local EnemyConfig = require(Shared.Config.Enemy)
 
 local ChargingService = {}
 
@@ -45,6 +47,7 @@ function ChargingService.beginRound()
 				return
 			end
 			uses -= 1
+			NoiseService.emit(station.Position, EnemyConfig.Noise.Charging, "Charging")
 			PlayerStateService.setBattery(player, PlayerConfig.Flashlight.MaxBattery)
 			prompt.ObjectText = usesText(uses)
 			if uses <= 0 then

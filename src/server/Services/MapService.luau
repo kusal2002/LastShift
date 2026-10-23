@@ -244,6 +244,21 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			CanCollide = false,
 		})
 		addLight(lamp, color, 24, if char == "L" then 1.2 else 0.9)
+		-- Lit cells double as the Echo's patrol route.
+		makeMarker(
+			`EchoPatrol_{suffix}`,
+			CFrame.new(center + Vector3.new(0, 0.5, 0)),
+			Tags.EchoPatrol,
+			parent
+		)
+	elseif char == "Z" then
+		makeMarker(`EchoSpawn_{suffix}`, CFrame.new(center + Vector3.new(0, 0.5, 0)), Tags.EchoSpawn, parent)
+		makeMarker(
+			`EchoPatrol_{suffix}`,
+			CFrame.new(center + Vector3.new(0, 0.5, 0)),
+			Tags.EchoPatrol,
+			parent
+		)
 	elseif char == "D" then
 		local door = makePart({
 			Name = `ExitDoor_{suffix}`,

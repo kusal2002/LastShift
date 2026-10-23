@@ -1,5 +1,5 @@
 --!strict
--- Studio-only test keys: F6 take 40 damage, F7 skip the phase timer, F8 drain flashlight.
+-- Studio-only test keys: F6 take 40 damage, F7 skip the phase timer, F8 drain flashlight, F9 wake the Echo.
 -- Does nothing in a live game; the server also refuses these outside Studio.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -12,6 +12,7 @@ local KEYS: { [Enum.KeyCode]: string } = {
 	[Enum.KeyCode.F6] = "Damage",
 	[Enum.KeyCode.F7] = "SkipTimer",
 	[Enum.KeyCode.F8] = "DrainBattery",
+	[Enum.KeyCode.F9] = "WakeEcho",
 }
 
 local DevController = {}

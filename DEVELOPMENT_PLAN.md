@@ -2,9 +2,9 @@
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code written and checked offline) · `[✓]` verified in Studio
 
-**Current state (2026-10-23):** Phases 1 and 2 code complete and passing all offline checks. **Neither has been tested in Roblox Studio yet.**
+**Current state (2026-10-23):** Phases 1–3 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phase 1 on `main`, Phase 2 on `phase-2/player-systems`).
+Repository: https://github.com/kusal2002/LastShift (Phase 1 on `main`; Phase 2 on `phase-2/player-systems`, PR #1; Phase 3 on `phase-3/echo-ai`, stacked on Phase 2).
 
 ---
 
@@ -174,7 +174,64 @@ Run each and note pass/fail here.
 7. **Mobile** — Device emulator (phone): RUN and LIGHT buttons visible above the jump button and don't overlap it; RUN highlights when toggled on; meters fit at the bottom without covering the thumbstick.
 8. **Regression** — Run the Phase 1 test list again.
 
-## Phase 3 — The Echo AI (not started)
+## Phase 3 — The Echo AI `[x]` (awaiting Studio test)
+
+### How it works
+- **`Logic/EchoBrain.luau`** (pure, unit-tested) decides the next state each AI tick from a perception record: can it see a target, how far, how long since it last saw one, alert level, whether it heard something, whether its move arrived or failed, attack cooldown.
+- **`Enemy/Echo.luau`** (server) gathers that perception and acts on the state. One AI thread per Echo, ticking every 0.2 s; destroying the Echo stops it. Tick errors are caught and logged; after 20 errors the AI stops rather than spamming.
+- **`Enemy/EchoMover.luau`** follows PathfindingService paths. It re-paths at most every 0.5 s while chasing and every 2 s otherwise, re-paths when a path is blocked, and walks straight at the goal if pathing fails within 12 studs. If it makes no progress for 2 s it re-paths; after 3 stuck checks the move counts as failed. After 4 failed moves in a row, the Echo moves to a patrol point more than 40 studs from players that none of them can see. It never relocates near players.
+- **`Enemy/EchoRig.luau`**: placeholder tall, thin, dark humanoid built from parts (about 10 studs tall, long arms, two pale eyes). No animations. Server-owned physics.
+- **`EnemyService`** spawns one Echo at the `Z` lair (tower room) when players enter the station, and removes it when the round resets. Patrol points are every lit cell (`L`/`C`).
+- **`NoiseService`**: server-only noise events. Sources (loudness 0..1): sprinting 0.6 every 0.5 s, failed calibration 1.0, fuse insert 0.8, revive 0.6, charging 0.5. Walking is silent. A sound is heard within 60 studs × loudness.
+
+### States
+| State | Behaviour | Leaves when |
+|---|---|---|
+| Dormant | Waits in its lair for 40 s after players enter | Grace period ends (F9 skips it) |
+| Patrol | Walks between lit cells at 8 | Sees a player → Stalk (far) or Hunt (close / alert ≥ 60); hears a sound → Listen |
+| Listen | Stops and turns toward the sound for 1.5 s | Sees a player, or time up → Investigate |
+| Investigate | Walks to the sound at 11 | Sees a player; arrives, can't reach it, or 20 s → Search |
+| Stalk | Follows to about 30 studs away and watches at 7 | Player closer than 18 or alert ≥ 60 → Hunt; out of sight 4 s → Search; 8 s → Retreat |
+| Hunt | Chases the last place it saw the target at 16 solo / 17 team (players sprint at 19) | In range with cooldown ready → Attack; out of sight 4 s → Search; 20 s solo / 25 s team → Retreat |
+| Attack | Stops, faces the target, eyes flare red, 0.7 s windup | Hit → Retreat; miss → Hunt |
+| Search | Checks patrol points within 30 studs of the last sighting for 10 s | Sees → Hunt/Stalk; hears → Listen; time up → Recover |
+| Retreat | Walks to the patrol point farthest from players at 14 | Arrives, fails, or 15 s → Recover |
+| Recover | Pauses 3 s and forgets alert, target and sounds | → Patrol |
+
+- **Sight:** 70 studs (91 if the player's flashlight is on), 110° field of view, raycast line of sight from its head to the player's head. It notices anyone within 6 studs regardless of facing. It never tracks through walls: the chase goal is the last place it actually saw you.
+- **Attack fairness:** the hit only lands if, when the 0.7 s windup ends, the target is still within 7 studs, visible and not downed. Damage 55 (two hits down a healthy player). Cooldown 3.5 s solo / 2.5 s team. It retreats after every hit, giving the victim time to escape or be revived. **Downed players are not targeted.**
+- **Readable cues (until audio in Phase 4):** eye colour — pale (patrol), warm (listen/investigate/stalk/search), red (hunt), bright red (attack windup).
+- **Debugging:** in Studio, a label above the Echo shows its state and alert. Set `Config/Debug.Enabled` to true to log every state change and noise.
+
+### Checklist
+- [x] Enemy rig integration (placeholder)
+- [x] State machine with all 10 states
+- [x] Patrol and investigation
+- [x] Sound event handling
+- [x] Detection with field of view and line of sight
+- [x] Pursuit and server-validated attack
+- [x] Search and recovery
+- [x] Navigation failure handling (failed paths, blocked paths, stuck detection, unseen relocation)
+- [ ] Studio playtest (steps below)
+
+### Offline results (actually run, 2026-10-23)
+- `lune run tests/run`: 42 passed, 0 failed (adds 13 Echo decision tests: every state's exits, alert, field of view, hearing)
+- `selene src`: 0 errors, 0 warnings · `stylua --check`: clean · `luau-lsp analyze` (strict): 0 errors · `rojo build`: OK
+
+### Studio test script (Phase 3 acceptance)
+1. **Spawn** — Start a solo round. The Echo stands in the tower room (top right) with a debug label reading `Dormant`. Output shows "Echo spawned (solo)". No errors.
+2. **Patrol** — Press F9. The label changes to `Patrol` and it walks between rooms through doorways without grinding into walls.
+3. **Hearing** — Out of its sight, sprint nearby: it switches to `Listen` (stops and turns), then `Investigate` (walks to where you were), then `Search`. Walking in the same place should not trigger it.
+4. **Stalk and hunt** — Let it see you from far away: `Stalk` (keeps its distance, watches). Approach it or stay visible: `Hunt`, eyes red.
+5. **Escape** — During a hunt, sprint and break line of sight around a corner. After about 4 s it goes to `Search`, then `Recover`, then `Patrol`.
+6. **Attack** — Let it reach you. It stops with bright red eyes for 0.7 s; step away during the windup and the hit misses. Stand still and you take 55 damage, then it retreats. A second hit downs you; it does not attack you while downed.
+7. **Failed calibration** — Submit a wrong frequency at the console: it hears it from across the station (`Listen` → `Investigate` toward the operations room).
+8. **Unreachable goal** — Jump onto a crate while it hunts you. It should keep trying briefly, then give up (`Search`) rather than freeze in place. If it gets stuck repeatedly, Output shows "relocated out of sight".
+9. **Round reset** — Finish or fail the round. The Echo is removed (Workspace.Enemies empty in the lobby), and a new one appears next round. Run three rounds; no duplicate Echoes, no errors.
+10. **Two players** — It chases one; the other can revive the downed one. It ignores the downed player.
+11. **Performance** — With the Echo hunting, check the server Script Performance / MicroProfiler: the AI should stay well under 1 ms per tick.
+
+## Phase 4 — Horror and anomaly variants (not started)
 
 ## Known issues / limitations
 - Dropped fuse returns to its original spot rather than where the carrier fell.
@@ -184,6 +241,9 @@ Run each and note pass/fail here.
 - Calibration UI has buttons only (no keyboard shortcuts yet).
 - Escaped players are teleported straight to the lobby; no exit cutscene.
 - All art is placeholder geometry; no sounds (no verified asset IDs chosen).
+- The Echo has no animations: it glides upright. Its only state cue is eye colour until Phase 4 adds audio.
+- The Echo's tuning (speeds, ranges, timings in `Config/Enemy.luau`) is a first guess and needs balancing in playtests.
+- Players can stand on crates the Echo can't path onto. It gives up rather than getting stuck, but this may be exploitable; consider making furniture taller or adding a crate-climb later.
 
 ## Deferred features
 - See master spec §21. Nothing beyond the MVP until Phase 9 passes.
