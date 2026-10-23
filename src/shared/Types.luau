@@ -18,6 +18,13 @@ export type BriefingView = {
 	Controls: string,
 }
 
+export type TeamMemberView = {
+	UserId: number,
+	Name: string,
+	Status: PlayerStatus,
+	Downed: boolean,
+}
+
 -- Sent to each player whenever round state changes.
 export type Snapshot = {
 	RoundId: number,
@@ -32,6 +39,7 @@ export type Snapshot = {
 	Objectives: { ObjectiveView },
 	ExitOpen: boolean,
 	Briefing: BriefingView?,
+	Team: { TeamMemberView }, -- this round's participants; empty when not in a round
 }
 
 export type TeamMemberResult = {

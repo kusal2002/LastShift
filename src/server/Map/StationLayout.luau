@@ -9,6 +9,7 @@
 --   L  warm ceiling light       C  cold ceiling light
 --   D  exit door (opens at extraction)
 --   X  extraction zone (loading bay)
+--   Q  flashlight charging station (wall-mounted)
 --
 -- Rooms: storage (top left), operations (top middle), tower access (top right),
 -- corridor (middle), generator (bottom left), entrance hall (bottom middle),
@@ -20,19 +21,19 @@ return {
 	Origin = { X = 0, Y = 100, Z = 0 },
 	LobbyOrigin = { X = 92, Y = 100, Z = -160 },
 	LobbySize = 64,
-	MountedChars = { P = true, R = true, B = true },
+	MountedChars = { P = true, R = true, B = true, Q = true },
 	Rows = {
 		"########################",
 		"#E..F.#.......R..#F...E#",
 		"#.....#..........#.....#",
 		"#..L..#...L..L...#..L..#",
 		"#.....#..........#.....#",
-		"#.....#..........#.....#",
+		"#.....#..........#....Q#",
 		"###.#######.#######.####",
 		"#......................#",
 		"#...C......C.......C...#",
 		"###.#######.#######.####",
-		"#.....#..........#.....#",
+		"#Q....#..........#.....#",
 		"#..L.P#...L..L...#..L.B#",
 		"#.....#...S..S...#.....#",
 		"#E....#..........#....E#",

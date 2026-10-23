@@ -1,0 +1,3 @@
+--!strict
+-- Replaces Roblox's default "Health" script, which slowly regenerates health.
+-- Health is controlled only by PlayerStateService on the server.

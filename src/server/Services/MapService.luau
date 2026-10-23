@@ -175,6 +175,29 @@ local function buildMarker(char: string, row: number, col: number, parent: Model
 			panel:SetAttribute("PanelId", `GEN-{suffix}`)
 			CollectionService:AddTag(panel, Tags.FusePanel)
 		end
+	elseif char == "Q" then
+		local cframe = mountedCFrame(row, col, 0.8, 4)
+		if cframe then
+			local charger = makePart({
+				Name = `ChargingStation_{suffix}`,
+				Size = Vector3.new(2.5, 3, 0.8),
+				CFrame = cframe,
+				Color = COLORS.Console,
+				Material = Enum.Material.Metal,
+				Parent = parent,
+			})
+			CollectionService:AddTag(charger, Tags.ChargingStation)
+			local strip = makePart({
+				Name = `ChargerLight_{suffix}`,
+				Size = Vector3.new(1.8, 0.3, 0.2),
+				CFrame = charger.CFrame * CFrame.new(0, 1, -0.45),
+				Color = COLORS.Screen,
+				Material = Enum.Material.Neon,
+				Parent = parent,
+				CanCollide = false,
+			})
+			addLight(strip, COLORS.Screen, 8, 0.6)
+		end
 	elseif char == "R" then
 		local cframe = mountedCFrame(row, col, 2.5, 1.75)
 		if cframe then

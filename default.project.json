@@ -12,16 +12,24 @@
       "StarterPlayerScripts": {
         "Client": { "$path": "src/client" }
       },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Health": { "$path": "src/character/Health.server.luau" }
+      },
       "$properties": {
-        "CharacterWalkSpeed": 12
+        "CharacterWalkSpeed": 12,
+        "EnableMouseLockOption": false
       }
     },
     "Players": {
       "$properties": { "CharacterAutoLoads": true }
     },
+    "Workspace": {
+      "$properties": { "StreamingEnabled": false }
+    },
     "Lighting": {
       "$properties": {
-        "Ambient": [0.2, 0.21, 0.24],
+        "Ambient": [0.1, 0.11, 0.13],
         "OutdoorAmbient": [0.12, 0.13, 0.16],
         "Brightness": 1,
         "ClockTime": 0,
