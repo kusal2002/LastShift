@@ -5,7 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Types = require(Shared.Types)
-local ObjectivesConfig = require(Shared.Config.Objectives)
+local Evidence = require(Shared.Config.Evidence)
 
 local Objectives = script.Parent.Parent.Objectives
 local ObjectiveTypes = require(Objectives.ObjectiveTypes)
@@ -14,7 +14,7 @@ local RemoteService = require(script.Parent.RemoteService)
 
 type Factory = { new: (ObjectiveTypes.Context) -> ObjectiveTypes.Objective }
 
--- Phase 1 always uses all three. Later phases pick from a larger pool.
+-- All three are used every round for the MVP.
 local FACTORIES: { Factory } = {
 	require(Objectives.FuseObjective) :: any,
 	require(Objectives.CalibrationObjective) :: any,
@@ -23,6 +23,7 @@ local FACTORIES: { Factory } = {
 
 export type BeginParams = {
 	rng: Random,
+	anomalyId: string,
 	onChanged: () -> (),
 	onAllComplete: () -> (),
 }
@@ -30,7 +31,7 @@ export type BeginParams = {
 local ObjectiveService = {}
 
 local active: { ObjectiveTypes.Objective } = {}
-local evidence: { ObjectivesConfig.EvidenceDef } = {}
+local evidence: { Evidence.EvidenceDef } = {}
 local allDoneReported = false
 
 function ObjectiveService.allComplete(): boolean
@@ -62,6 +63,7 @@ function ObjectiveService.begin(params: BeginParams)
 			return params.rng:NextInteger(low, high)
 		end,
 		roundFolder = MapService.getRoundFolder(),
+		anomalyId = params.anomalyId,
 		markChanged = function()
 			params.onChanged()
 			if not allDoneReported and ObjectiveService.allComplete() then
@@ -70,7 +72,12 @@ function ObjectiveService.begin(params: BeginParams)
 			end
 		end,
 		notify = RemoteService.notify,
-		recordEvidence = function(item: ObjectivesConfig.EvidenceDef)
+		recordEvidence = function(item: Evidence.EvidenceDef)
+			for _, existing in evidence do
+				if existing.Id == item.Id then
+					return
+				end
+			end
 			table.insert(evidence, item)
 		end,
 	}
@@ -99,6 +106,25 @@ end
 
 function ObjectiveService.total(): number
 	return #active
+end
+
+function ObjectiveService.getEvidence(): { Evidence.EvidenceDef }
+	return table.clone(evidence)
+end
+
+-- What players see in their notebook. The anomaly link is never included.
+function ObjectiveService.getEvidenceViews(): { Types.EvidenceView }
+	local views: { Types.EvidenceView } = {}
+	for _, item in evidence do
+		table.insert(views, {
+			Id = item.Id,
+			DisplayName = item.DisplayName,
+			Description = item.Description,
+			Category = item.Category :: string,
+			Risky = item.Risky,
+		})
+	end
+	return views
 end
 
 function ObjectiveService.getEvidenceNames(): { string }

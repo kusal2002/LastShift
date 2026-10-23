@@ -28,6 +28,11 @@ local ChargingService = require(script.Parent.ChargingService)
 local EnemyService = require(script.Parent.EnemyService)
 local DirectorService = require(script.Parent.DirectorService)
 local DecoyService = require(script.Parent.DecoyService)
+local DecisionService = require(script.Parent.DecisionService)
+local RewardService = require(script.Parent.RewardService)
+local AudioEventService = require(script.Parent.AudioEventService)
+local NoiseService = require(script.Parent.NoiseService)
+local Rewards = require(Shared.Logic.Rewards)
 
 type Phase = Types.Phase
 type Status = Types.PlayerStatus
@@ -48,6 +53,7 @@ local broadcastQueued = false
 local roundRng = Random.new()
 -- The round's anomaly. Server-only: players must work it out (classification in Phase 5).
 local activeAnomaly: Anomalies.Profile = Anomalies.List[1]
+local transmitCompleted = false -- the team survived the full transmission countdown
 
 local function now(): number
 	return Workspace:GetServerTimeNow()
@@ -133,6 +139,7 @@ local function buildSnapshot(player: Player): Types.Snapshot
 		ExitOpen = ExtractionService.isOpen(),
 		Briefing = briefing,
 		Team = if isParticipant then buildTeam() else {},
+		Evidence = if isParticipant then ObjectiveService.getEvidenceViews() else {},
 	}
 end
 
@@ -173,6 +180,7 @@ local function sendToStation(player: Player)
 end
 
 local setPhase: (nextPhase: Phase) -> ()
+local handleDecision: (choice: DecisionService.Choice) -> ()
 
 local function resetRound()
 	ObjectiveService.reset()
@@ -180,8 +188,10 @@ local function resetRound()
 	ChargingService.reset()
 	DirectorService.endRound()
 	DecoyService.endRound()
+	DecisionService.reset()
 	EnemyService.endRound()
 	PlayerStateService.endRound()
+	transmitCompleted = false
 	for player, status in participants do
 		if player.Parent == Players and (status == "Alive" or status == "Lost") then
 			sendToLobby(player)
@@ -197,13 +207,31 @@ local function endRound(reason: string)
 	for player, status in participants do
 		table.insert(team, { Name = player.DisplayName, Status = status :: Status })
 	end
-	local evidence = ObjectiveService.getEvidenceNames()
+	local evidenceNames: { string } = {}
+	local evidenceRewards: { number } = {}
+	for _, item in ObjectiveService.getEvidence() do
+		table.insert(evidenceNames, item.DisplayName)
+		table.insert(evidenceRewards, item.Reward)
+	end
 	local completed = ObjectiveService.completedCount()
 	local total = ObjectiveService.total()
 	local duration = math.floor(math.max(0, now() - roundStartedAt))
+	local choice = DecisionService.getChoice()
+	local classification: Rewards.Classification = if choice then choice.classification else "None"
+	local ending: Rewards.Ending = if choice then choice.ending else "None"
+	local chosenId = if choice then choice.classifiedAs else nil
+	local chosenProfile = if chosenId then Anomalies.ById[chosenId] else nil
 
 	for player, status in participants do
 		if player.Parent == Players then
+			local reward = RewardService.grant(roundId, player, {
+				objectivesCompleted = completed,
+				evidenceRewards = evidenceRewards,
+				classification = classification,
+				ending = ending,
+				transmitCompleted = transmitCompleted,
+				escaped = status == "Escaped",
+			})
 			local results: Types.Results = {
 				RoundId = roundId,
 				Success = success,
@@ -211,9 +239,17 @@ local function endRound(reason: string)
 				YourStatus = status :: Status,
 				ObjectivesCompleted = completed,
 				ObjectivesTotal = total,
-				Evidence = evidence,
+				Evidence = evidenceNames,
 				DurationSeconds = duration,
 				Team = team,
+				AnomalyName = activeAnomaly.DisplayName,
+				Classification = classification,
+				ClassifiedAs = if chosenProfile then chosenProfile.DisplayName else nil,
+				Ending = ending,
+				TransmitCompleted = transmitCompleted,
+				Credits = reward.Credits,
+				XP = reward.XP,
+				Breakdown = reward.Breakdown,
 			}
 			RemoteService.fire(player, Names.Results, results)
 		end
@@ -276,10 +312,11 @@ local function startRound()
 	end
 	ObjectiveService.begin({
 		rng = roundRng,
+		anomalyId = activeAnomaly.Id,
 		onChanged = broadcast,
 		onAllComplete = function()
 			if phase == "Investigation" then
-				setPhase("Extraction")
+				setPhase("Decision")
 			end
 		end,
 	})
@@ -327,26 +364,84 @@ setPhase = function(nextPhase: Phase)
 		if ObjectiveService.allComplete() then
 			task.defer(function()
 				if phase == "Investigation" then
-					setPhase("Extraction")
+					setPhase("Decision")
 				end
 			end)
 		end
-	elseif nextPhase == "Extraction" then
-		ExtractionService.open()
-		DirectorService.setExtracting()
-		EnemyService.escalate()
-		phaseEndsAt = now() + RoundConfig.ExtractionDuration
+	elseif nextPhase == "Decision" then
+		-- The investigation deadline keeps running while the team decides.
+		DecisionService.open({
+			anomalyId = activeAnomaly.Id,
+			onDecided = function(choice: DecisionService.Choice)
+				handleDecision(choice)
+			end,
+		})
 		for _, player in alivePlayers() do
 			RemoteService.notify(
 				player,
-				"All systems restored. The exit is open. Get to the loading bay!",
+				"Systems restored. File your report at the transmitter in Operations.",
 				"success"
 			)
+		end
+	elseif nextPhase == "Transmission" then
+		phaseEndsAt = now() + RoundConfig.TransmitDuration
+		DirectorService.setExtracting(false)
+		EnemyService.escalate()
+		local transmitter = DecisionService.getTransmitter()
+		if transmitter then
+			EnemyService.lure(transmitter.Position)
+		end
+		AudioEventService.play(alivePlayers(), "TransmitStart")
+		for _, player in alivePlayers() do
+			RemoteService.notify(
+				player,
+				`Transmitting. Survive {RoundConfig.TransmitDuration} seconds.`,
+				"danger"
+			)
+		end
+	elseif nextPhase == "Extraction" then
+		ExtractionService.open()
+		DirectorService.setExtracting(true)
+		EnemyService.escalate()
+		phaseEndsAt = now() + RoundConfig.ExtractionDuration
+		local message = if transmitCompleted
+			then "Transmission sent. The exit is open. Get to the loading bay!"
+			else "The exit is open. Get to the loading bay!"
+		for _, player in alivePlayers() do
+			RemoteService.notify(player, message, "success")
 		end
 	elseif nextPhase == "Results" then
 		phaseEndsAt = now() + RoundConfig.ResultsDuration
 	end
 	broadcast()
+end
+
+-- The team filed its report at the transmitter.
+handleDecision = function(choice: DecisionService.Choice)
+	if phase ~= "Decision" then
+		return
+	end
+	local chosen = if choice.classifiedAs then Anomalies.ById[choice.classifiedAs] else nil
+	local label = if chosen then chosen.DisplayName else "unsure"
+	local action = if choice.ending == "Transmit" then "TRANSMIT" else "ABORT"
+	for _, player in alivePlayers() do
+		RemoteService.notify(
+			player,
+			`{choice.byName} filed the report ({label}) and chose to {action}.`,
+			"info"
+		)
+	end
+	if choice.classification == "Incorrect" then
+		-- A wrong report has a cost: the transmitter shrieks and the Echo comes to look.
+		AudioEventService.play(alivePlayers(), "ReportRejected")
+		local transmitter = DecisionService.getTransmitter()
+		if transmitter then
+			NoiseService.emit(transmitter.Position, 1, "ReportRejected")
+			EnemyService.escalate()
+			EnemyService.lure(transmitter.Position)
+		end
+	end
+	setPhase(if choice.ending == "Transmit" then "Transmission" else "Extraction")
 end
 
 local function updateLobby()
@@ -397,8 +492,14 @@ local function tick(dt: number)
 		if timeUp() then
 			setPhase("Investigation")
 		end
-	elseif phase == "Investigation" then
+	elseif phase == "Investigation" or phase == "Decision" then
 		checkEnd(timeUp())
+	elseif phase == "Transmission" then
+		checkEnd(false)
+		if phase == "Transmission" and timeUp() then
+			transmitCompleted = true
+			setPhase("Extraction")
+		end
 	elseif phase == "Extraction" then
 		updateExtraction(dt)
 		checkEnd(timeUp())

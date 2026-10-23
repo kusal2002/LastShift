@@ -13,6 +13,7 @@
 --   Z  Echo spawn (lair). Every L and C cell is also an Echo patrol point.
 --   G  backup power switch (wall-mounted); ends a blackout early
 --   N  noise maker pickup (shelf + marker)
+--   K  optional risky evidence (desk near the Echo lair)
 return {
 	CellSize = 8,
 	WallHeight = 14,
@@ -26,7 +27,7 @@ return {
 		"#E..F.#.......R..#F...E#",
 		"#.....#..........#..Z..#",
 		"#..L..#...L..L...#..L..#",
-		"#.....#..........#.....#",
+		"#.....#..........#..K..#",
 		"#.....#..........#....Q#",
 		"###.#######.#######.####",
 		"#N....................N#",

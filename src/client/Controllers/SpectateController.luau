@@ -2,8 +2,10 @@
 -- Lets eliminated players watch teammates who are still inside the station.
 -- Camera only: nothing here affects gameplay.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local RoundTransitions = require(ReplicatedStorage.Shared.Logic.RoundTransitions)
 local Client = script.Parent.Parent
 local State = require(Client.State)
 local Theme = require(Client.UI.Theme)
@@ -63,7 +65,7 @@ function SpectateController.start()
 		local snapshot = State.get()
 		local eligible = snapshot ~= nil
 			and snapshot.Status == "Dead"
-			and (snapshot.Phase == "Investigation" or snapshot.Phase == "Extraction")
+			and RoundTransitions.isActiveRound(snapshot.Phase)
 		if not eligible then
 			optedOut = false
 		end

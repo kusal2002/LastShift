@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage.Shared
 local Remotes = require(Shared.Remotes)
 local PlayerConfig = require(Shared.Config.Player)
+local RoundTransitions = require(Shared.Logic.RoundTransitions)
 local Client = script.Parent.Parent
 local State = require(Client.State)
 local Theme = require(Client.UI.Theme)
@@ -164,7 +165,7 @@ local function buildHud()
 		local visible = snapshot ~= nil
 			and snapshot.IsParticipant
 			and snapshot.Status == "Alive"
-			and (snapshot.Phase == "Investigation" or snapshot.Phase == "Extraction")
+			and RoundTransitions.isActiveRound(snapshot.Phase)
 		gui.Enabled = visible
 		if not visible or snapshot == nil then
 			return
@@ -175,6 +176,16 @@ local function buildHud()
 			phaseLabel.Text = `EXTRACTION  {timer}`
 			phaseLabel.TextColor3 = Theme.Colors.Red
 			hint.Text = "Exit open: reach the loading bay"
+			hint.Visible = true
+		elseif snapshot.Phase == "Transmission" then
+			phaseLabel.Text = `TRANSMITTING  {timer}`
+			phaseLabel.TextColor3 = Theme.Colors.Red
+			hint.Text = "Survive until the transmission is sent"
+			hint.Visible = true
+		elseif snapshot.Phase == "Decision" then
+			phaseLabel.Text = `FINAL DECISION  {timer}`
+			phaseLabel.TextColor3 = Theme.Colors.Amber
+			hint.Text = "Use the transmitter in Operations to file your report"
 			hint.Visible = true
 		else
 			phaseLabel.Text = `INVESTIGATION  {timer}`
@@ -262,7 +273,7 @@ local function buildMeters()
 		local visible = snapshot ~= nil
 			and snapshot.IsParticipant
 			and snapshot.Status == "Alive"
-			and (snapshot.Phase == "Investigation" or snapshot.Phase == "Extraction")
+			and RoundTransitions.isActiveRound(snapshot.Phase)
 		gui.Enabled = visible
 		if not visible then
 			return

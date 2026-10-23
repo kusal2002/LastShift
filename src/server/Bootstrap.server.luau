@@ -17,6 +17,8 @@ local ordered: { any } = {
 	require(Services.DecoyService),
 	require(Services.EnemyService),
 	require(Services.DirectorService),
+	require(Services.DecisionService),
+	require(Services.RewardService),
 	require(Services.RoundService),
 	require(Services.DevCommandService), -- does nothing outside Studio
 }

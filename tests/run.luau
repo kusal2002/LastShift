@@ -6,6 +6,7 @@ require("./logic_spec")
 require("./player_spec")
 require("./echo_spec")
 require("./anomaly_spec")
+require("./evidence_spec")
 
 if not H.summary() then
 	process.exit(1)

@@ -12,6 +12,8 @@ Remotes.Names = table.freeze({
 	CalibrationOpen = "CalibrationOpen",
 	CalibrationClose = "CalibrationClose",
 	AudioCue = "AudioCue", -- (payload: AudioCuePayload)
+	DecisionOpen = "DecisionOpen", -- (options: DecisionOptions)
+	DecisionClose = "DecisionClose", -- ()
 	LightFlicker = "LightFlicker", -- (room: string, seconds: number) cosmetic only
 	-- client -> server
 	SnapshotRequest = "SnapshotRequest", -- () client asks for current state once on join
@@ -21,6 +23,7 @@ Remotes.Names = table.freeze({
 	SprintRequest = "SprintRequest", -- (wantsSprint: boolean)
 	FlashlightToggle = "FlashlightToggle", -- ()
 	DecoyUse = "DecoyUse", -- () place the carried noise maker
+	DecisionSubmit = "DecisionSubmit", -- (anomalyId: string, ending: "Transmit" | "Abort")
 	DevCommand = "DevCommand", -- (command: string) Studio only; ignored on live servers
 })
 

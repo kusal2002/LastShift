@@ -52,6 +52,18 @@ local cues: { [string]: Cue } = {
 		Volume = 0.7,
 		Important = true,
 	},
+	TransmitStart = {
+		Subtitle = "[the tower screams to life: hold out until the transmission is sent]",
+		AssetKey = "TransmitStart",
+		Volume = 0.9,
+		Important = true,
+	},
+	ReportRejected = {
+		Subtitle = "[the transmitter shrieks: the report was wrong, and something heard it]",
+		AssetKey = "ReportRejected",
+		Volume = 0.9,
+		Important = true,
+	},
 	ExtractionAlarm = {
 		Subtitle = "[extraction alarm]",
 		AssetKey = "ExtractionAlarm",
