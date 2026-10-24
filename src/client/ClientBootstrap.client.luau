@@ -24,6 +24,8 @@ local controllers: { any } = {
 	require(Controllers.DecisionController),
 	require(Controllers.CasebookController),
 	require(Controllers.LockerController),
+	require(Controllers.SettingsController),
+	require(Controllers.HowToPlayController),
 	require(Controllers.DevController), -- does nothing outside Studio
 }
 

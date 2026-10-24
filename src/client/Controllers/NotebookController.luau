@@ -1,6 +1,7 @@
 --!strict
 -- Evidence notebook: everything the team has recovered this round, for working out which
 -- anomaly is in the station. Opened with the NOTES button (any device) or J / gamepad DPadLeft.
+-- A SETTINGS button sits underneath so settings are reachable during a round.
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -10,33 +11,52 @@ local Types = require(Shared.Types)
 local Client = script.Parent.Parent
 local State = require(Client.State)
 local Theme = require(Client.UI.Theme)
+local SettingsController = require(script.Parent.SettingsController)
 
 local NotebookController = {}
 
 function NotebookController.start()
 	local gui = Theme.screenGui("Notebook", 9)
 
-	local toggle = Instance.new("TextButton")
-	toggle.AnchorPoint = Vector2.new(1, 0)
-	toggle.Position = UDim2.new(1, -12, 0, 12)
-	toggle.Size = UDim2.fromOffset(110, 44)
-	toggle.BackgroundColor3 = Theme.Colors.Panel
-	toggle.BackgroundTransparency = 0.15
-	toggle.TextColor3 = Theme.Colors.Amber
-	toggle.FontFace = Theme.Bold
-	toggle.TextSize = 16
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 4)
-	corner.Parent = toggle
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Theme.Colors.Amber
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = toggle
-	toggle.Parent = gui
+	local buttons = Instance.new("Frame")
+	buttons.BackgroundTransparency = 1
+	buttons.AnchorPoint = Vector2.new(1, 0)
+	buttons.Position = UDim2.new(1, -12, 0, 12)
+	buttons.Size = UDim2.fromOffset(120, 96)
+	local buttonList = Instance.new("UIListLayout")
+	buttonList.Padding = UDim.new(0, 8)
+	buttonList.SortOrder = Enum.SortOrder.LayoutOrder
+	buttonList.Parent = buttons
+	buttons.Parent = gui
+	Theme.scaled(buttons)
+
+	local function cornerButton(text: string, order: number): TextButton
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, 0, 0, 44)
+		button.LayoutOrder = order
+		button.BackgroundColor3 = Theme.Colors.Panel
+		button.BackgroundTransparency = 0.15
+		button.TextColor3 = Theme.Colors.Amber
+		button.FontFace = Theme.Bold
+		button.TextSize = 16
+		button.Text = text
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = button
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Theme.Colors.Amber
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = button
+		button.Parent = buttons
+		return button
+	end
+	local toggle = cornerButton("NOTES", 1)
+	local settingsButton = cornerButton("SETTINGS", 2)
+	settingsButton.Activated:Connect(SettingsController.toggle)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(1, 0)
-	panel.Position = UDim2.new(1, -12, 0, 64)
+	panel.Position = UDim2.new(1, -12, 0, 116)
 	panel.Size = UDim2.new(0.9, 0, 0.6, 0)
 	panel.BackgroundColor3 = Theme.Colors.Panel
 	panel.BackgroundTransparency = 0.1
@@ -48,6 +68,7 @@ function NotebookController.start()
 	limit.MaxSize = Vector2.new(380, 520)
 	limit.Parent = panel
 	panel.Parent = gui
+	Theme.scaled(panel)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -16, 1, -16)

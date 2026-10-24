@@ -17,7 +17,8 @@ local Round = table.freeze({
 		Location = "Relay Station K-7 / Harrow Forest",
 		Objective = "Restore the relay: replace the blown fuse, tune the radio to the posted frequency, "
 			.. "and recover evidence of what is in the station. Then report it at the transmitter, and get out.",
-		Controls = "Move: WASD or thumbstick    Interact: hold E or tap the prompt",
+		Controls = "Move: WASD or thumbstick    Interact: hold E or tap the prompt    Notes: J or NOTES",
+		Equipment = "Equipment: flashlight (about 5 minutes of battery). Chargers and noise makers are somewhere inside.",
 	}),
 })
 

@@ -21,7 +21,7 @@ export type Data = {
 	anomalies: { [string]: AnomalyRecord },
 	owned: { [string]: boolean }, -- cosmetic ids
 	equipped: { [string]: string }, -- slot -> cosmetic id
-	settings: { [string]: boolean },
+	settings: { [string]: boolean | number },
 	lock: Lock?,
 }
 
@@ -39,15 +39,29 @@ export type Catalog = {
 
 local Profile = {}
 
-Profile.CurrentVersion = 1
+Profile.CurrentVersion = 2
 
 -- Settings that may be saved, with defaults. Anything else a client sends is ignored.
-local settingDefaults: { [string]: boolean } = {
+-- A setting's type is its default's type. Numbers are clamped to SettingRanges.
+local settingDefaults: { [string]: boolean | number } = {
 	Subtitles = true,
 	AmbientSubtitles = true,
 	ReducedFlashes = false,
+	-- Added in v2
+	MasterVolume = 1,
+	EffectsVolume = 1, -- important cues (enemy, alarms, PA)
+	AmbientVolume = 0.8, -- background cues (footsteps, static)
+	TextScale = 1, -- UI size multiplier
 }
 Profile.SettingDefaults = table.freeze(settingDefaults)
+
+local settingRanges: { [string]: { number } } = {
+	MasterVolume = { 0, 1 },
+	EffectsVolume = { 0, 1 },
+	AmbientVolume = { 0, 1 },
+	TextScale = { 0.85, 1.3 },
+}
+Profile.SettingRanges = table.freeze(settingRanges)
 
 function Profile.new(catalog: Catalog): Data
 	local data: Data = {
@@ -67,8 +81,20 @@ function Profile.new(catalog: Catalog): Data
 end
 
 -- Upgrades older saves step by step. Add a function here whenever the schema changes and bump
--- CurrentVersion. Example for a future v2: MIGRATIONS[1] = function(data) data.newField = 0 return data end
-local MIGRATIONS: { [number]: (any) -> any } = {}
+-- CurrentVersion. MIGRATIONS[n] turns a version-n save into version n+1.
+local MIGRATIONS: { [number]: (any) -> any } = {
+	-- v1 -> v2: volume and text-size settings.
+	[1] = function(data: any): any
+		if type(data.settings) ~= "table" then
+			data.settings = {}
+		end
+		data.settings.MasterVolume = data.settings.MasterVolume or 1
+		data.settings.EffectsVolume = data.settings.EffectsVolume or 1
+		data.settings.AmbientVolume = data.settings.AmbientVolume or 0.8
+		data.settings.TextScale = data.settings.TextScale or 1
+		return data
+	end,
+}
 
 function Profile.migrate(data: any): any
 	if type(data.version) ~= "number" then
@@ -149,9 +175,8 @@ function Profile.sanitize(raw: any, catalog: Catalog): Data
 		end
 	end
 	if type(raw.settings) == "table" then
-		for key, default in Profile.SettingDefaults do
-			local value = raw.settings[key]
-			data.settings[key] = if type(value) == "boolean" then value else default
+		for key in Profile.SettingDefaults do
+			Profile.setSetting(data, key, raw.settings[key])
 		end
 	end
 	if type(raw.lock) == "table" and type(raw.lock.jobId) == "string" and type(raw.lock.at) == "number" then
@@ -318,10 +343,20 @@ function Profile.equip(data: Data, slot: string, id: string, catalog: Catalog): 
 	return true
 end
 
--- Only known boolean settings are stored.
+-- Only known settings of the right type are stored. Numbers are clamped and rounded to 0.05.
 function Profile.setSetting(data: Data, key: string, value: any): boolean
-	if Profile.SettingDefaults[key] == nil or type(value) ~= "boolean" then
+	local default = Profile.SettingDefaults[key]
+	if default == nil or type(value) ~= type(default) then
 		return false
+	end
+	if type(value) == "number" then
+		if value ~= value then
+			return false
+		end
+		local range = Profile.SettingRanges[key]
+		local low = if range then range[1] else 0
+		local high = if range then range[2] else 1
+		value = math.round(math.clamp(value, low, high) * 20) / 20
 	end
 	data.settings[key] = value
 	return true

@@ -67,6 +67,7 @@ function ResultsController.start()
 	limit.MaxSize = Vector2.new(480, 600)
 	limit.Parent = panel
 	panel.Parent = gui
+	Theme.scaled(panel)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Position = UDim2.fromOffset(14, 14)

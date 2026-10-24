@@ -24,6 +24,7 @@ export type BriefingView = {
 	Objective: string,
 	Controls: string,
 	Classified: string, -- a hint about this round's anomaly
+	Equipment: string,
 }
 
 export type TeamMemberView = {
@@ -93,7 +94,7 @@ export type ProfileView = {
 	Casebook: { CasebookEntry },
 	EvidenceTotal: number,
 	Anomalies: { AnomalyRecordView },
-	Settings: { [string]: boolean },
+	Settings: { [string]: any }, -- booleans and numbers (see Profile.SettingDefaults)
 	Stats: { Rounds: number, Escapes: number, Transmissions: number, CorrectReports: number },
 }
 

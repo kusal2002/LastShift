@@ -37,6 +37,7 @@ function DownedController.start()
 	local panel = Theme.panel(tint, "Panel", 420)
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.4)
+	Theme.scaled(panel)
 	local title = Theme.label(panel, "YOU ARE DOWN", 28, Theme.Colors.Red, true)
 	title.TextXAlignment = Enum.TextXAlignment.Center
 	local detail = Theme.label(panel, "", 16)

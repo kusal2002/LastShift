@@ -15,6 +15,8 @@ local Settings = require(Client.Settings)
 local Theme = require(Client.UI.Theme)
 local CasebookController = require(script.Parent.CasebookController)
 local LockerController = require(script.Parent.LockerController)
+local SettingsController = require(script.Parent.SettingsController)
+local HowToPlayController = require(script.Parent.HowToPlayController)
 
 local LobbyController = {}
 
@@ -35,6 +37,17 @@ function LobbyController.start()
 	local menuRow = Theme.row(panel, 44)
 	local casebookButton = Theme.rowButton(menuRow, "CASEBOOK", 2, Theme.Colors.Muted)
 	local lockerButton = Theme.rowButton(menuRow, "LOCKER", 2, Theme.Colors.Muted)
+	local helpRow = Theme.row(panel, 44)
+	local settingsButton = Theme.rowButton(helpRow, "SETTINGS", 2, Theme.Colors.Muted)
+	local howToButton = Theme.rowButton(helpRow, "HOW TO PLAY", 2, Theme.Colors.Muted)
+
+	-- Only one lobby screen open at a time.
+	local function closeScreens()
+		CasebookController.close()
+		LockerController.close()
+		SettingsController.close()
+		HowToPlayController.close()
+	end
 
 	button.Activated:Connect(function()
 		local snapshot = State.get()
@@ -42,14 +55,16 @@ function LobbyController.start()
 			playRequest:FireServer(not snapshot.IsReady)
 		end
 	end)
-	casebookButton.Activated:Connect(function()
-		LockerController.close()
-		CasebookController.toggle()
-	end)
-	lockerButton.Activated:Connect(function()
-		CasebookController.close()
-		LockerController.toggle()
-	end)
+	local function bind(target: TextButton, screen: { toggle: () -> () })
+		target.Activated:Connect(function()
+			closeScreens()
+			screen.toggle()
+		end)
+	end
+	bind(casebookButton, CasebookController)
+	bind(lockerButton, LockerController)
+	bind(settingsButton, SettingsController)
+	bind(howToButton, HowToPlayController)
 
 	local function renderProfile()
 		local view = ProfileState.get()
@@ -82,6 +97,7 @@ function LobbyController.start()
 		then
 			CasebookController.close()
 			LockerController.close()
+			HowToPlayController.close()
 		end
 		button.Text = if snapshot.IsReady then "CANCEL" else "PLAY"
 

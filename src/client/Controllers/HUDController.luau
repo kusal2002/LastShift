@@ -52,6 +52,7 @@ local function buildToasts()
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.Parent = container
 	container.Parent = gui
+	Theme.scaled(container)
 
 	local count = 0
 	local live: { Frame } = {}
@@ -264,6 +265,8 @@ local function buildMeters()
 	local health = makeMeter(panel, "HEALTH", Theme.Colors.Red)
 	local stamina = makeMeter(panel, "STAMINA", Theme.Colors.Green)
 	local battery = makeMeter(panel, "LIGHT", Theme.Colors.Amber)
+	local warning = Theme.label(panel, "", 13, Theme.Colors.Red, true)
+	warning.LayoutOrder = 99
 	local hints = Theme.label(panel, "[Shift] sprint   [F] flashlight", 12, Theme.Colors.Muted)
 	hints.LayoutOrder = 100
 	hints.Visible = UserInputService.KeyboardEnabled
@@ -296,6 +299,17 @@ local function buildMeters()
 			batteryValue / PlayerConfig.Flashlight.MaxBattery,
 			`{if on then "ON" else "OFF"} {batteryValue}%`
 		)
+
+		-- Contextual warnings, in words as well as colour.
+		local warnings = {}
+		if batteryValue <= 20 then
+			table.insert(warnings, if batteryValue <= 0 then "LIGHT DEAD: find a charger" else "LOW BATTERY")
+		end
+		if staminaValue <= 10 then
+			table.insert(warnings, "OUT OF BREATH")
+		end
+		warning.Text = table.concat(warnings, "   ")
+		warning.Visible = #warnings > 0
 
 		local hasDecoy = player:GetAttribute("HasDecoy") == true
 		hints.Text = "[Shift] sprint   [F] flashlight" .. (if hasDecoy then "   [G] noise maker" else "")
