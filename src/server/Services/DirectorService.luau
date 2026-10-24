@@ -23,6 +23,8 @@ local NoiseService = require(script.Parent.NoiseService)
 local RemoteService = require(script.Parent.RemoteService)
 local AudioEventService = require(script.Parent.AudioEventService)
 local LightingService = require(script.Parent.LightingService)
+local PropService = require(script.Parent.PropService)
+local Props = require(Shared.Config.Props)
 local EnemyService = require(script.Parent.EnemyService)
 
 export type BeginParams = {
@@ -150,6 +152,8 @@ local function spawnFalseCue()
 	glow.Parent = part
 	part.Parent = MapService.getRoundFolder()
 	eventMaid:give(part)
+	-- Must look exactly like real evidence of that type.
+	PropService.dress(part, (Props.Evidence :: any)[disguise.Category])
 
 	local position = spot.Position
 	InteractionService.createPrompt(part, {

@@ -11,6 +11,10 @@ local Tags = require(Shared.Config.Tags)
 local MapGrid = require(Shared.Logic.MapGrid)
 local Log = require(Shared.Util.Log)
 local Layout = require(script.Parent.Parent.Map.StationLayout)
+local RoomVolumes = require(script.Parent.Parent.Map.RoomVolumes)
+local MapValidator = require(script.Parent.Parent.Map.MapValidator)
+local MapRules = require(Shared.Logic.MapRules)
+local ServerStorage = game:GetService("ServerStorage")
 
 local MapService = {}
 
@@ -33,6 +37,7 @@ local COLORS = {
 local station: Model
 local lobby: Model
 local roundFolder: Folder
+local volumes: { BasePart } = {}
 
 type PartProps = {
 	Name: string,
@@ -410,6 +415,28 @@ local function buildStation(): Model
 		end
 	end
 
+	-- Room volumes, so room lookups work the same way as on a hand-built map.
+	local roomsFolder = Instance.new("Folder")
+	roomsFolder.Name = "Rooms"
+	roomsFolder.Parent = model
+	for _, room in Layout.Rooms do
+		local low = cellCenter(room.Rows[1], room.Cols[1]) - Vector3.new(cell / 2, 0, cell / 2)
+		local high = cellCenter(room.Rows[2], room.Cols[2]) + Vector3.new(cell / 2, 0, cell / 2)
+		local volume = makePart({
+			Name = `Room_{room.Name}`,
+			Size = Vector3.new(high.X - low.X, height + 8, high.Z - low.Z),
+			CFrame = CFrame.new((low + high) / 2 + Vector3.new(0, height / 2, 0)),
+			Color = COLORS.Zone,
+			Parent = roomsFolder,
+			CanCollide = false,
+			Transparency = 1,
+		})
+		volume.CanQuery = false
+		volume.CanTouch = false
+		volume:SetAttribute("RoomName", room.Name)
+		CollectionService:AddTag(volume, Tags.RoomVolume)
+	end
+
 	model.Parent = Workspace
 	Log.info("Map", "Built graybox station (%dx%d cells)", width, depth)
 	return model
@@ -505,9 +532,43 @@ local function findModel(name: string): Model?
 	return nil
 end
 
+-- A hand-built map saved from Studio to assets/maps/<name>.rbxm (synced to ServerStorage.Maps).
+local function loadStoredMap(name: string): Model?
+	local maps = ServerStorage:FindFirstChild("Maps")
+	local stored = if maps then maps:FindFirstChild(name) else nil
+	if stored and stored:IsA("Model") then
+		local copy = stored:Clone()
+		copy.Name = name
+		copy.Parent = Workspace
+		Log.info("Map", "Loaded hand-built %s from assets/maps", name)
+		return copy
+	end
+	return nil
+end
+
 function MapService.Init()
-	station = findModel("Station") or buildStation()
-	lobby = findModel("Lobby") or buildLobby()
+	local handBuilt = findModel("Station") or loadStoredMap("Station")
+	station = handBuilt or buildStation()
+	local issues = MapValidator.check(station)
+	MapValidator.report(if handBuilt then "Hand-built station" else "Generated station", issues)
+	if handBuilt and MapRules.errorCount(issues) > 0 then
+		Log.warn(
+			"Map",
+			"The hand-built station has errors (listed above); using the generated graybox instead"
+		)
+		handBuilt:Destroy()
+		station = buildStation()
+	end
+	lobby = findModel("Lobby") or loadStoredMap("Lobby") or buildLobby()
+	volumes = RoomVolumes.collect(station)
+
+	-- Hand-built lamps may lack a Room attribute; fill it in from the room volumes.
+	for _, lamp in MapService.getTagged(Tags.StationLight) do
+		local room = lamp:GetAttribute("Room")
+		if type(room) ~= "string" or room == "" then
+			lamp:SetAttribute("Room", MapService.roomAt(lamp.Position))
+		end
+	end
 
 	roundFolder = Instance.new("Folder")
 	roundFolder.Name = "RoundObjects"
@@ -558,41 +619,52 @@ function MapService.getLobbySpawnCFrame(): CFrame
 	return CFrame.new(Layout.LobbyOrigin.X, Layout.LobbyOrigin.Y + 4, Layout.LobbyOrigin.Z)
 end
 
--- Room name at a world position inside the station, or "" if outside / unnamed.
--- Only meaningful for the generated graybox layout.
+-- Room name at a world position (from RoomVolume boxes), or "" if outside every room.
 function MapService.roomAt(position: Vector3): string
-	local size = Layout.CellSize
-	local height = position.Y - Layout.Origin.Y
-	if height < -4 or height > Layout.WallHeight + 4 then
-		return ""
-	end
-	local col = math.round((position.X - Layout.Origin.X) / size)
-	local row = math.round((position.Z - Layout.Origin.Z) / size)
-	return MapGrid.roomAt(Layout.Rooms, row, col) or ""
+	return RoomVolumes.nameAt(volumes, position) or ""
 end
 
 function MapService.getRoomNames(): { string }
 	local names = {}
-	for _, room in Layout.Rooms do
-		table.insert(names, room.Name)
+	local seen: { [string]: boolean } = {}
+	for _, volume in volumes do
+		local name = RoomVolumes.nameOf(volume)
+		if name ~= "" and not seen[name] then
+			seen[name] = true
+			table.insert(names, name)
+		end
 	end
 	return names
 end
 
--- Floor-level centres of every walkable cell in a room.
+-- Walkable points in a room (its Echo patrol markers), or the room's floor centre if it has none.
 function MapService.getRoomPoints(roomName: string): { Vector3 }
 	local points = {}
-	for rowIndex, line in Layout.Rows do
-		for col = 0, #line - 1 do
-			local row = rowIndex - 1
-			local char = MapGrid.charAt(Layout.Rows, row, col)
-			-- Plain floor only, so points are never inside furniture.
-			if char == "." and MapGrid.roomAt(Layout.Rooms, row, col) == roomName then
-				table.insert(points, cellCenter(row, col) + Vector3.new(0, 0.5, 0))
+	local roomVolumes = {}
+	for _, volume in volumes do
+		if RoomVolumes.nameOf(volume) == roomName then
+			table.insert(roomVolumes, volume)
+		end
+	end
+	for _, marker in MapService.getTagged(Tags.EchoPatrol) do
+		for _, volume in roomVolumes do
+			if RoomVolumes.contains(volume, marker.Position) then
+				table.insert(points, marker.Position)
+				break
 			end
 		end
 	end
+	if #points == 0 then
+		for _, volume in roomVolumes do
+			table.insert(points, volume.Position - Vector3.new(0, volume.Size.Y / 2 - 4.5, 0))
+		end
+	end
 	return points
+end
+
+-- Studio tool: structural and navigation checks of the current station. Yields.
+function MapService.validateNavigation(): { MapRules.Issue }
+	return MapValidator.checkNavigation(station)
 end
 
 return MapService

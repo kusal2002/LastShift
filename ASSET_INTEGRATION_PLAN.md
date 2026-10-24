@@ -1,6 +1,8 @@
 # Asset Integration Plan — LAST SHIFT: Signal Lost
 
-Status: **Stage A (audit and plan) complete, 2026-10-24.** No assets have been imported yet. Nothing in the game has changed visually.
+Status: **Stage A complete; Stage B tooling built (2026-10-24).** Route B (hand-built in Studio) chosen. No assets have been imported yet, and nothing in the game has changed visually.
+
+**Building the map? Start with [MAP_BUILDING_GUIDE.md](MAP_BUILDING_GUIDE.md).**
 
 Related documents: [ASSET_CATALOG.md](ASSET_CATALOG.md) (assets, IDs, vetting status) · [ENVIRONMENT_DESIGN.md](ENVIRONMENT_DESIGN.md) (rooms, routes, atmosphere) · [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (gameplay phases)
 
@@ -181,14 +183,16 @@ Ordered by value to gameplay. All use the existing `InteractionService` (server-
 ## 10. Stages and progress
 
 - [x] **Stage A — Audit and plan** (this document, the catalog and the environment design)
-- [ ] **Stage B — Radio station visual upgrade**
-  - [ ] Decide route A or B (section 6)
-  - [ ] Build `tools/asset_audit.luau` and `PropService` with primitive fallbacks
-  - [ ] You import the first kit (architecture plus office/electrical props) into `assets/raw/`
-  - [ ] Audit, clean, and sync to `ServerStorage.Props`
-  - [ ] Room volumes (tag `RoomVolume`, attribute `RoomName`) so hand-built maps keep the HUD room names
-  - [ ] Map validator (required tags/attributes present, counts, room names)
-  - [ ] Build or dress the station following ENVIRONMENT_DESIGN.md
+- [~] **Stage B — Radio station visual upgrade**
+  - [x] Decide route: **B, hand-built in Studio**
+  - [x] `tools/asset_audit.luau`: offline scan (scripts, remotes, sounds, backdoor patterns, part counts), strips scripts, anchors parts, writes cleaned copies; report in `build/asset_audit_report.md`
+  - [x] Rojo syncs `assets/props` → `ServerStorage.Props` and `assets/maps` → `ServerStorage.Maps`; `assets/raw` is git-ignored
+  - [x] `PropService`: dresses the fuse, evidence (per type), fake evidence and noise maker with imported models; placeholder fallback
+  - [x] Room volumes (tag `RoomVolume`, attribute `RoomName`), also generated for the graybox; lamp rooms filled in automatically
+  - [x] Map validator: required tags and counts, room names, anchoring, markers outside rooms; navigation test for Echo and players (F11, and on start in Studio); hand-built maps with errors fall back to the graybox
+  - [x] MAP_BUILDING_GUIDE.md: tag contract and workflow
+  - [ ] You import the first kit into `assets/raw/`, run the audit
+  - [ ] Build the station following ENVIRONMENT_DESIGN.md and MAP_BUILDING_GUIDE.md
 - [ ] **Stage C — Physical mission objects** (backlog items 1–3)
 - [ ] **Stage D — Echo navigation check** on the new geometry (validator plus manual chase tests)
 - [ ] **Stage E — Playtest** interactions, lighting, audio, performance (PC plus mobile emulator)
@@ -205,4 +209,5 @@ The game currently has **one** location. Chapters 2–4 are new scope. They need
 1. Choose route **A** or **B** (section 6).
 2. In Studio, use **Get Model** on the verified official packs you want to start with (see the catalog). Recommended first: **Modular Building Kit – Modern City** and **House Props Pack – Duvall Drive**.
 3. Do not drag whole packs into the game. Pick the pieces you need, then use right-click → **Save to File** into `assets/raw/<Kit>/`.
-4. Tell me when files are there. I'll run the audit, clean them, wire them into Rojo, and replace the placeholders.
+4. Run `lune run tools/asset_audit` (or ask me to). Clean models land in `assets/props/` and show up in Studio under ServerStorage → Props.
+5. Build the station by following MAP_BUILDING_GUIDE.md, and save it to `assets/maps/Station.rbxm`.

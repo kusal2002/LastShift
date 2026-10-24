@@ -66,5 +66,5 @@ Other official packs seen in search but not checked: City Road Pack (6432233485)
 ## 4. How to add an asset to this catalog
 1. Find it on the store. Open its page and record ID, URL, creator, created date, triangle / script / audio counts, and intended use. Status: **Listing verified**.
 2. In Studio: **Get Model**, insert, delete what you don't need, and **Save to File** into `assets/raw/<Kit>/`. Status: **Imported**.
-3. Run the asset audit (built in Stage B). Fix or reject. Status: **Audited**.
+3. Run `lune run tools/asset_audit`. Fix or reject. Status: **Audited**.
 4. Place it in the game. Note the room in ENVIRONMENT_DESIGN.md. Status: **In use**.

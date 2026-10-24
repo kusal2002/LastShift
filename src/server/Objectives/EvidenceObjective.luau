@@ -16,6 +16,8 @@ local Log = require(Shared.Util.Log)
 local Services = script.Parent.Parent.Services
 local MapService = require(Services.MapService)
 local InteractionService = require(Services.InteractionService)
+local PropService = require(Services.PropService)
+local Props = require(Shared.Config.Props)
 local NoiseService = require(Services.NoiseService)
 local ObjectiveTypes = require(script.Parent.ObjectiveTypes)
 
@@ -66,6 +68,8 @@ function EvidenceObjective.new(ctx: ObjectiveTypes.Context): ObjectiveTypes.Obje
 		part.CFrame = spot.CFrame
 		part.Parent = ctx.roundFolder
 		maid:give(part)
+		-- A cassette, folder, printout or photo depending on the evidence type.
+		PropService.dress(part, (Props.Evidence :: any)[item.Category])
 		local glow = Instance.new("PointLight")
 		glow.Color = if item.Risky then RISKY_GLOW_COLOR else GLOW_COLOR
 		glow.Range = 5

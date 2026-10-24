@@ -18,4 +18,5 @@ return table.freeze({
 	PowerSwitch = "PowerSwitch", -- backup power switch that ends a blackout
 	RiskyEvidenceSpawn = "RiskyEvidenceSpawn", -- marker for the optional high-value evidence (near the lair)
 	DecoySpawn = "DecoySpawn", -- marker where a noise maker can be placed
+	RoomVolume = "RoomVolume", -- invisible box covering a room; attribute RoomName
 })
