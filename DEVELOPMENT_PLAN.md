@@ -4,7 +4,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done (code writte
 
 **Current state (2026-10-24):** Phases 1–7 code complete and passing all offline checks. **None has been tested in Roblox Studio yet.**
 
-Repository: https://github.com/kusal2002/LastShift (Phases 1–6 merged to `main`; Phase 7 on `phase-7/ui-polish`).
+Repository: https://github.com/kusal2002/LastShift (Phases 1–7 merged to `main`).
+
+Visual upgrade (real 3D assets, detailed maps, more chapters): see [ASSET_INTEGRATION_PLAN.md](ASSET_INTEGRATION_PLAN.md), [ASSET_CATALOG.md](ASSET_CATALOG.md) and [ENVIRONMENT_DESIGN.md](ENVIRONMENT_DESIGN.md). Stage A (audit and plan) is done; no assets are imported yet.
 
 ---
 

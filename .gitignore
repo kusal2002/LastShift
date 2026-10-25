@@ -5,3 +5,7 @@
 sourcemap.json
 /build/
 types/
+
+# Unaudited Studio exports (only the README is committed)
+assets/raw/*
+!assets/raw/README.md

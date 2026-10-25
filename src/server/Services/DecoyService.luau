@@ -17,6 +17,8 @@ local InteractionService = require(script.Parent.InteractionService)
 local NoiseService = require(script.Parent.NoiseService)
 local RemoteService = require(script.Parent.RemoteService)
 local AudioEventService = require(script.Parent.AudioEventService)
+local PropService = require(script.Parent.PropService)
+local Props = require(Shared.Config.Props)
 
 local DECOY_COLOR = Color3.fromRGB(40, 44, 40)
 local LIGHT_COLOR = Color3.fromRGB(255, 120, 60)
@@ -44,6 +46,7 @@ local function makeDevice(cframe: CFrame): Part
 	light.Brightness = 0.8
 	light.Parent = part
 	part.Parent = MapService.getRoundFolder()
+	PropService.dress(part, Props.NoiseMaker)
 	return part
 end
 

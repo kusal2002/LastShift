@@ -15,6 +15,8 @@ local Log = require(Shared.Util.Log)
 local Services = script.Parent.Parent.Services
 local MapService = require(Services.MapService)
 local InteractionService = require(Services.InteractionService)
+local PropService = require(Services.PropService)
+local Props = require(Shared.Config.Props)
 local NoiseService = require(Services.NoiseService)
 local EnemyConfig = require(Shared.Config.Enemy)
 local ObjectiveTypes = require(script.Parent.ObjectiveTypes)
@@ -79,6 +81,7 @@ function FuseObjective.new(ctx: ObjectiveTypes.Context): ObjectiveTypes.Objectiv
 		weld.Part1 = visual
 		weld.Parent = visual
 		visual.Parent = character
+		PropService.dress(visual, Props.Fuse, { attach = true })
 		carriedVisual = visual
 	end
 
@@ -95,6 +98,7 @@ function FuseObjective.new(ctx: ObjectiveTypes.Context): ObjectiveTypes.Objectiv
 		part.CanCollide = false
 		part.CFrame = spawnPoint.CFrame
 		part.Parent = ctx.roundFolder
+		PropService.dress(part, Props.Fuse)
 		fusePart = part
 
 		InteractionService.createPrompt(part, {
