@@ -2,6 +2,8 @@
 
 **Status (2026-10-25):** initial audit only. No code has been changed for this migration, and nothing has been tested in Roblox Studio. Design decisions in section 7 are open.
 
+**Re-checked 2026-10-25** against this branch (based on `main`, without PR #8): `lune run tests/run` 89 passed / 0 failed; StyLua, Selene, luau-lsp strict analysis and `rojo build` all clean. Counts below corrected to match the files.
+
 Goal: turn LastShift into a cinematic, bodycam-inspired survival horror FPS for solo and co-op play, with both human and creature enemies, **without rewriting the game**. Working systems are kept or extended. Nothing is replaced without a stated reason.
 
 Related: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (phases 1–7), [ASSET_INTEGRATION_PLAN.md](ASSET_INTEGRATION_PLAN.md) and [ASSET_CATALOG.md](ASSET_CATALOG.md) (visual upgrade, on the `assets/audit-plan` branch, PR #8).
@@ -10,7 +12,7 @@ Related: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (phases 1–7), [ASSET_INTEG
 
 ## Summary
 
-- The game is a good base: modular services, every gameplay decision made on the server, all client requests going through one rate-limited remote wrapper, and 101 unit tests. About 90% of it can be kept.
+- The game is a good base: modular services, every gameplay decision made on the server, all client requests going through one rate-limited remote wrapper, and 89 unit tests (PR #8 adds two more spec files). About 90% of it can be kept.
 - The FPS parts don't exist yet:
   - Camera: the default Roblox third-person camera.
   - Inventory, weapons and human enemies: none.
@@ -22,16 +24,16 @@ Related: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) (phases 1–7), [ASSET_INTEG
 
 ## 1. Project structure
 
-A Rojo project (`default.project.json`), about 12.6k lines of strict-typed Luau, all in the repo. Tools are pinned by Rokit: Rojo, Selene, StyLua, Lune, luau-lsp.
+A Rojo project (`default.project.json`), about 10.4k lines of strict-typed Luau in `src/`, all in the repo. Tools are pinned by Rokit: Rojo, Selene, StyLua, Lune, luau-lsp.
 
 | Folder | Contents |
 |---|---|
-| `src/server/Services` (22 services) | Round flow, objectives, player state, enemy, director, saving, rewards, map, interactions, remotes |
+| `src/server/Services` (18 services; 19 with PR #8's PropService) | Round flow, objectives, player state, enemy, director, saving, rewards, map, interactions, remotes |
 | `src/server/Enemy` | The Echo: AI object, pathfinding mover, placeholder rig |
 | `src/server/Objectives`, `Map`, `Data` | Fuse / calibration / evidence objectives; station layout; save store |
-| `src/shared/Config` (18 files) | All tuning: player, enemy, anomalies, audio, economy, cosmetics, director, etc. |
-| `src/shared/Logic` (15 modules) | Pure, unit-tested rules: round phases, damage, stamina, Echo decisions, rewards, profile, director pacing |
-| `src/client` | 18 UI/input controllers, state stores, settings, theme |
+| `src/shared/Config` (14 files; 16 with PR #8) | All tuning: player, enemy, anomalies, audio, economy, cosmetics, director, etc. |
+| `src/shared/Logic` (13 modules; 14 with PR #8) | Pure, unit-tested rules: round phases, damage, stamina, Echo decisions, rewards, profile, director pacing |
+| `src/client` | 17 UI/input controllers, state stores, settings, theme |
 | `tests/` | Lune unit tests (`lune run tests/run`) |
 
 - **Camera:** none. Players get the default third-person camera. The only camera code is the spectate subject switch, subtitle distance hints and UI scaling.
@@ -60,6 +62,8 @@ SERVER  RoundService (the only owner of round phases)
         NoiseService ◀─ sprinting, failed repairs, revive, noise makers, power switch (Echo listens)
 SHARED  Config/* · Logic/* (pure) · Types · Remotes · Util (Log, Maid, RateLimiter, Signal)
 ```
+
+"Props", room volumes and the map validator come from PR #8 and are not on `main` yet.
 
 ---
 
@@ -152,6 +156,23 @@ Every stage must keep all existing unit tests passing and re-run the relevant St
 | **7. Balance and polish** | Creature vs gunfire rules, mobile controls, performance, security review | 4-player test; server frame time under budget with all enemies active; full exploit pass on every remote |
 
 ---
+
+## 6b. Mapping to the requested A–I stages
+
+The A–I order from the project brief was reordered to match what the code already has:
+
+| Brief stage | Plan stage | Why moved |
+|---|---|---|
+| A. Audit and backup | Stage 0 | Backup exists: git, every phase on its own branch and PR. Missing piece is the Studio baseline playtest |
+| B. Camera, movement, flashlight | Stages 1–2 | Unchanged. Split in two so the camera (client only) lands before the flashlight change (needs a new remote) |
+| C. Environment, materials, lighting | PR #8 (in parallel) | Already planned and partly built on `assets/audit-plan`; touches no gameplay code, so it can run alongside |
+| G. Inventory (part) | Stage 3 | Pulled **before** weapons: weapons need slots, and fuse/noise maker must move in first to avoid two item systems |
+| D. Weapons and combat | Stage 4 | Blocked on combat design decisions (section 7) |
+| F. Creature AI (refactor) | Stage 5 | The creature (Echo) already exists with hunt/search/attack. The shared enemy framework is split out before adding a second enemy type |
+| E. Human enemy AI | Stage 6 | Built on the Stage 5 framework |
+| G. Objectives and escape | — | Already exist (fuse, calibration, evidence, extraction). KEEP |
+| H. Co-op and shared state | — | Already server-owned for 1–4 players, with solo-mode downed rules. Squad-size scaling added per enemy in Stages 5–6 |
+| I. Audio, animation, horror, optimization | Stage 7 | Audio cues and the director already exist; this stage is balance and performance |
 
 ## 7. Missing information and open decisions
 
