@@ -52,6 +52,10 @@ local settingDefaults: { [string]: boolean | number } = {
 	EffectsVolume = 1, -- important cues (enemy, alarms, PA)
 	AmbientVolume = 0.8, -- background cues (footsteps, static)
 	TextScale = 1, -- UI size multiplier
+	-- Added for the bodycam camera. No version bump: missing keys load as these defaults.
+	MouseSensitivity = 1,
+	FieldOfView = 80,
+	CameraMotion = 1, -- 0 turns camera sway off
 }
 Profile.SettingDefaults = table.freeze(settingDefaults)
 
@@ -60,6 +64,9 @@ local settingRanges: { [string]: { number } } = {
 	EffectsVolume = { 0, 1 },
 	AmbientVolume = { 0, 1 },
 	TextScale = { 0.85, 1.3 },
+	MouseSensitivity = { 0.2, 2 },
+	FieldOfView = { 70, 90 },
+	CameraMotion = { 0, 1 },
 }
 Profile.SettingRanges = table.freeze(settingRanges)
 

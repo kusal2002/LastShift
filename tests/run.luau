@@ -8,6 +8,7 @@ require("./echo_spec")
 require("./anomaly_spec")
 require("./evidence_spec")
 require("./profile_spec")
+require("./camera_spec")
 require("./audit_spec")
 require("./map_spec")
 
