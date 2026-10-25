@@ -240,6 +240,26 @@ H.test("number settings are clamped and rounded", function()
 	H.eq(data.settings.TextScale, 1.3)
 end)
 
+H.test("camera settings are clamped, and old saves get camera defaults", function()
+	local data = Profile.new(Cosmetics)
+	H.eq(data.settings.MouseSensitivity, 1)
+	H.eq(data.settings.FieldOfView, 80)
+	H.eq(data.settings.CameraMotion, 1)
+	H.ok(Profile.setSetting(data, "MouseSensitivity", 50))
+	H.eq(data.settings.MouseSensitivity, 2)
+	H.ok(Profile.setSetting(data, "FieldOfView", 10))
+	H.eq(data.settings.FieldOfView, 70)
+	H.ok(Profile.setSetting(data, "CameraMotion", -1))
+	H.eq(data.settings.CameraMotion, 0)
+	H.eq(Profile.setSetting(data, "CameraMotion", false), false, "motion must be a number")
+
+	-- A v2 save from before the camera settings existed.
+	local old = Profile.sanitize({ version = 2, settings = { MasterVolume = 0.5 } }, Cosmetics)
+	H.eq(old.settings.MasterVolume, 0.5)
+	H.eq(old.settings.FieldOfView, 80)
+	H.eq(old.settings.CameraMotion, 1)
+end)
+
 H.test("cosmetics never change gameplay numbers", function()
 	for _, item in Cosmetics.Items do
 		for key in item do

@@ -1,5 +1,5 @@
 --!strict
--- Settings and accessibility screen: volumes, subtitles, reduced flashes, text size.
+-- Settings and accessibility screen: volumes, subtitles, reduced flashes, text size, camera.
 -- Changes apply immediately and are saved to the profile. Toggles show ON/OFF as text, not
 -- just colour.
 local Client = script.Parent.Parent
@@ -61,7 +61,17 @@ local function toggleRow(parent: Instance, labelText: string, key: Key)
 	end)
 end
 
-local function stepperRow(parent: Instance, labelText: string, key: Key, step: number)
+local function percent(value: number): string
+	return `{math.round(value * 100)}%`
+end
+
+local function stepperRow(
+	parent: Instance,
+	labelText: string,
+	key: Key,
+	step: number,
+	format: ((number) -> string)?
+)
 	local row = rowFrame(parent, labelText)
 	local value = Settings.get(key) :: number
 	local minus = smallButton(row, "-", UDim.new(0.55, 0), UDim.new(0.13, 0))
@@ -72,7 +82,7 @@ local function stepperRow(parent: Instance, labelText: string, key: Key, step: n
 	display.TextSize = 15
 	display.TextColor3 = Theme.Colors.Text
 	display.FontFace = Theme.Bold
-	display.Text = `{math.round(value * 100)}%`
+	display.Text = (format or percent)(value)
 	display.Parent = row
 	local plus = smallButton(row, "+", UDim.new(0.87, 0), UDim.new(0.13, 0))
 	minus.Activated:Connect(function()
@@ -138,6 +148,21 @@ local function render()
 	Theme.label(body, "VISUALS", 15, Theme.Colors.Amber, true)
 	toggleRow(body, "Reduced flashes (lights dim instead of flickering)", "ReducedFlashes")
 	textSizeRow(body)
+
+	Theme.label(body, "CAMERA", 15, Theme.Colors.Amber, true)
+	stepperRow(body, "Mouse sensitivity", "MouseSensitivity", 0.1)
+	stepperRow(body, "Field of view", "FieldOfView", 5, function(value: number): string
+		return `{math.round(value)}°`
+	end)
+	stepperRow(body, "Camera motion (walking sway)", "CameraMotion", 0.25, function(value: number): string
+		return if value <= 0 then "OFF" else percent(value)
+	end)
+	Theme.label(
+		body,
+		"In a shift, hold Left Alt to use the mouse on screen buttons. Gamepad and touch look speed are set in the Roblox menu.",
+		13,
+		Theme.Colors.Muted
+	)
 
 	Theme.label(body, "Settings are saved to your profile.", 13, Theme.Colors.Muted)
 end

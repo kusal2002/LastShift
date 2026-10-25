@@ -55,6 +55,7 @@ function NotebookController.start()
 	settingsButton.Activated:Connect(SettingsController.toggle)
 
 	local panel = Instance.new("Frame")
+	panel.Name = "NotesPanel" -- CameraController frees the mouse while this is open
 	panel.AnchorPoint = Vector2.new(1, 0)
 	panel.Position = UDim2.new(1, -12, 0, 116)
 	panel.Size = UDim2.new(0.9, 0, 0.6, 0)

@@ -19,7 +19,7 @@ local SECTIONS: { { title: string, lines: { string } } } = {
 	{
 		title = "CONTROLS",
 		lines = {
-			"Keyboard: WASD move, hold Shift sprint, F flashlight, G noise maker, J notes, E interact (hold).",
+			"Keyboard: WASD move, hold Shift sprint, F flashlight, G noise maker, J notes, E interact (hold), hold Left Alt for the mouse cursor.",
 			"Gamepad: left stick move, L3 sprint, Y flashlight, X noise maker, D-pad left notes.",
 			"Touch: thumbstick to move; RUN, LIGHT and DECOY buttons; tap prompts to interact.",
 		},
